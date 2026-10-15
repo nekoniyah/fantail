@@ -1,0 +1,43 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+    name: "fantail";
+    default: true;
+    prefersdark: true;
+    color-scheme: "dark";
+    --color-base-100: oklch(98% 0.003 247.858);
+    --color-base-200: oklch(96% 0.007 247.896);
+    --color-base-300: oklch(92% 0.013 255.508);
+    --color-base-content: oklch(14% 0.004 49.25);
+    --color-primary: oklch(39% 0.141 25.723);
+    --color-primary-content: #fbfbfb;
+    --color-secondary: oklch(55% 0.135 66.442);
+    --color-secondary-content: #fbfbfb;
+    --color-accent: oklch(47% 0.157 37.304);
+    --color-accent-content: #fbfbfb;
+    --color-neutral: oklch(98% 0.003 247.858);
+    --color-neutral-content: oklch(0% 0 0);
+    --color-info: oklch(39% 0.141 25.723);
+    --color-info-content: #fbfbfb;
+    --color-success: oklch(53% 0.157 131.589);
+    --color-success-content: #fbfbfb;
+    --color-warning: oklch(85% 0.199 91.936);
+    --color-warning-content: oklch(0% 0 0);
+    --color-error: oklch(58% 0.253 17.585);
+    --color-error-content: #fbfbfb;
+    --radius-selector: 2rem;
+    --radius-field: 1rem;
+    --radius-box: 1rem;
+    --size-selector: 0.21875rem;
+    --size-field: 0.3125rem;
+    --border: 1px;
+    --depth: 1;
+    --noise: 0;
+}
+
+html, body {
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+}

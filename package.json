@@ -1,0 +1,62 @@
+{
+  "name": "fantail",
+  "dependencies": {
+    "@prisma/client": "7.2.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express-session": "^1.19.0",
+    "bcrypt": "^6.0.0",
+    "chalk": "^6.0.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "express-session": "^1.19.0",
+    "figlet": "^1.12.0",
+    "helmet": "^8.3.0",
+    "multer": "^2.4.0",
+    "prisma": "7.2.0",
+    "svelte-preprocess": "^6.0.5",
+    "tailwindcss": "^4.3.3",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@prisma/adapter-libsql": "7.2.0",
+    "@sveltejs/adapter-node": "^6.0.0",
+    "@sveltejs/kit": "^3.1.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/bcrypt": "^6.0.0",
+    "@types/bun": "^1.4.3",
+    "@types/chalk": "^2.2.4",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
+    "@types/passport": "^1.0.17",
+    "@types/passport-local": "^1.0.38",
+    "concurrently": "^10.0.6",
+    "daisyui": "^5.7.50",
+    "sass": "^1.105.1",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.7.6",
+    "tsx": "^4.23.15",
+    "vite": "^8.3.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "type": "module",
+  "imports": {
+    "#lib": "./src/client/src/lib/index.js",
+    "#lib/*": "./src/client/src/lib/*"
+  },
+  "scripts": {
+    "dev:api": "bun --watch src/api/dev.ts",
+    "dev:client": "bunx --bun vite dev",
+    "dev": "concurrently \"bun run dev:api\" \"bun run dev:client\"",
+    "build": "bunx --bun vite build",
+    "start": "NODE_ENV=production bun src/api/prod.ts"
+  },
+  "trustedDependencies": [
+    "@parcel/watcher",
+    "svelte-preprocess"
+  ]
+}

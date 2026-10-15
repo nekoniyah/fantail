@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id       String  @id @default(cuid(2))
+  username String
+  password String
+  admin    Boolean @default(false)
+
+  token String
+
+  verified Boolean @default(false)
+  email    String?
+
+  displayName   String?
+  notifications Notification[]
+  description   String?
+
+  avatar Avatar?
+  banner Banner?
+
+  groups        Group[]
+  groupMessages GroupMessage[]
+
+  friendInvitations FriendInvitation[]
+
+  friends  User[] @relation("Friendship")
+  friendOf User[] @relation("Friendship")
+}
+
+model Media {
+  id             String        @id @default(cuid(2))
+  type           String
+  data           String
+  format         String
+  groupMessage   GroupMessage? @relation(fields: [groupMessageId], references: [id])
+  groupMessageId String?
+}
+
+model Avatar {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id])
+  data   String
+  format String
+}
+
+model Banner {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id])
+  data   String
+  format String
+}
+
+model Notification {
+  id      String @id @default(cuid(2))
+  user    User   @relation(fields: [userId], references: [id])
+  userId  String
+  message String
+  event   String
+}
+
+model Group {
+  id      String  @id @default(cuid(2))
+  ownerId String
+  members User[]
+  name    String?
+
+  messages GroupMessage[]
+}
+
+model GroupMessage {
+  id String @id @default(cuid(2))
+
+  group   Group  @relation(fields: [groupId], references: [id])
+  groupId String
+
+  sender   User   @relation(fields: [senderId], references: [id])
+  senderId String
+
+  content String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  attachments Media[]
+}
+
+model FriendInvitation {
+  id String @id @default(cuid(2))
+
+  sender   User   @relation(fields: [senderId], references: [id])
+  senderId String
+
+  targetId String
+}

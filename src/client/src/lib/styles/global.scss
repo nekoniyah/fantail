@@ -1,0 +1,130 @@
+// Global styles + design tokens. Imported once by src/routes/+layout.svelte.
+// Change colors/spacing here (CSS variables) and the whole app follows.
+
+:root {
+  --color-bg: #0f0f0f;
+  --color-bg-glow: #1a1a1a;
+  --color-surface: #1f1f1f;
+  --color-input: #151515;
+  --color-text: #fbfbfb;
+  --color-muted: #a8a8a8;
+  --color-primary: #a41623;
+  --color-accent: #d4af37;
+  --color-accent-soft: rgba(212, 175, 55, 0.12);
+  --color-accent-border: rgba(212, 175, 55, 0.4);
+  --color-accent-ring: rgba(212, 175, 55, 0.2);
+  --color-danger: #ff6b6b;
+  --color-success: #5ec27a;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
+  --color-hover: rgba(255, 255, 255, 0.07);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+
+  --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.5);
+  --font-sans: Cantarell;
+  --content-width: 1000px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background: radial-gradient(circle at top, var(--color-bg-glow) 0%, var(--color-bg) 60%) fixed;
+  padding: 0;
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--font-sans), sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+p, label, h1, h2, h3, h4, h5, h6 {
+  color: var(--color-text);
+  font-family: var(--font-sans), sans-serif;
+}
+
+h1 {
+  font-size: 2.5rem;
+  letter-spacing: -0.02em;
+  margin: 0.5rem 0;
+}
+
+.inline {
+  display: flex;
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+// Legacy/global card container (see also Card component).
+.container {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-6);
+  margin-inline: auto;
+  max-width: var(--content-width);
+  width: 100%;
+  text-align: center;
+  margin-block: var(--space-7);
+}
+
+input {
+  border: 1px solid var(--color-border-strong);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  color: var(--color-text);
+  font-size: 1rem;
+  margin-top: var(--space-3);
+  background-color: var(--color-input);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-family: var(--font-sans), sans-serif;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-ring);
+  }
+}
+
+button {
+  border: none;
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  max-width: 400px;
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: var(--space-4);
+  background-color: var(--color-primary);
+  transition: filter 0.2s ease, transform 0.1s ease;
+
+  &:hover {
+    filter: brightness(1.15);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
