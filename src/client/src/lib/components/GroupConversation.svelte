@@ -1,7 +1,9 @@
 <script lang="ts">
-    import {token, user} from "#lib/stores.ts";
+    import {user} from "#lib/stores.ts";
     import type {Group, PublicUser} from "#lib/types.ts";
+    import {createGroup, deleteGroup, fetchFriends, fetchGroups} from "#lib/api.ts";
     import {API_ROOT} from "#lib";
+    import ContextMenu from "#lib/components/ContextMenu.svelte";
 
     let selectedGroup = $state<Group>()
     let fetchedGroups = $state<Group[]>()
@@ -17,28 +19,63 @@
     let show = $derived(!!$user);
 
     $effect(() => {
-        if ($user) {
-            fetch(`${API_ROOT}/groups`, {
-                headers: {
-                    "Authorization": `Bearer ${$token}`
-                }
-            }).then(res => res.json()).then(res => fetchedGroups = res)
+        window.location.pathname;
+        (async () => {
+            if ($user) fetchedGroups = await fetchGroups();
+            console.log(fetchedGroups)
+            friends = await fetchFriends();
+        })()
+    })
 
-
-            if (creatingGroup)
-                fetch(`${API_ROOT}/friends`, {
-                    headers: {
-                        "Authorization": `Bearer ${$token}`
-                    }
-                }).then(res => res.json()).then(res => friends = res)
+    $effect(() => {
+        if (friends) {
+            if (searchTerm) filteredFriends = friends.filter(friend => friend.username.toLowerCase().includes(searchTerm!.toLowerCase()))
+            else filteredFriends = friends.slice(0, 10);
         }
     })
 
+    async function toggleGroupModal() {
+        creatingGroup = !creatingGroup;
+        const dialog = document.querySelector<HTMLDialogElement>("#create_group_dialog")!;
 
-    async function handleCreateGroup(event: SubmitEvent) {
+        if (creatingGroup) dialog?.showModal();
+        else dialog?.close();
+    }
+
+    async function handleCreateGroup(event: MouseEvent) {
         event.preventDefault();
+        document.querySelector<HTMLDialogElement>("#create_group_dialog")?.close();
+
+        console.log(selectedFriends)
+        const res = await createGroup(selectedFriends.map(friend => friend.id));
+        if (res.ok) fetchedGroups = await fetchGroups();
+
         selectedFriends = [];
         creatingGroup = false;
+    }
+
+    async function toggleFriendSelection(friend: any) {
+        if (selectedFriends.includes(friend)) {
+            selectedFriends = selectedFriends.filter(friend => friend !== friend);
+        } else {
+            selectedFriends.push(friend);
+        }
+    }
+
+    function generateContextMenuForGroup(group: any) {
+        return [
+            {
+                label: "Delete",
+                action: async () => {
+                    await deleteGroup(group.id);
+                    fetchedGroups = await fetchGroups();
+                }
+            }
+        ]
+    }
+
+    async function onSelectItemForGroup(item: any, group: any) {
+      await  item.action();
     }
 </script>
 
@@ -46,21 +83,31 @@
     <div class="fab">
         <div tabindex="0" role="button" class="btn btn-lg w-28 btn-primary">Groups</div>
 
+        <button class="btn btn-lg btn-circle"
+                onclick={toggleGroupModal}>+
+        </button>
+
         {#if fetchedGroups && fetchedGroups.length}
             {#each fetchedGroups as group}
-                <div> {group.name}
-                    <button class="btn btn-lg btn-circle" onclick={() => selectedGroup = group}>Select</button>
-                </div>
+                <ContextMenu items={generateContextMenuForGroup(group)} onselect={(item) => onSelectItemForGroup(item, group)}>
+                    <button class="btn btn-lg" onclick={() => { selectedGroup = group} }>
+                        <div class="avatar-group -space-x-6">
+                            {#each [...group.members, $user!] as member}
+                                <div class="avatar">
+                                    <div class="w-12">
+                                        <img src={`${API_ROOT}/avatars/${member.id}`} alt=""/>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </button>
+                </ContextMenu>
+
+
             {/each}
         {/if}
 
 
-        <button class="btn btn-lg btn-circle"
-                onclick={() => {
-                    document.querySelector<HTMLDialogElement>("#create_group_dialog")?.showModal()
-                    creatingGroup = true;
-                }}>+
-        </button>
     </div>
 
     <dialog id="create_group_dialog" class="modal">
@@ -68,35 +115,43 @@
             <h3 class="text-lg font-bold">Create Group</h3>
             <!-- if there is a button in form, it will close the modal -->
 
-
             {#if friends && !friends.length}
                 <p>No friends found. Search for one first.</p>
             {:else}
 
-                <input type="text" class="input input-bordered w-full " placeholder="Search friends"
-                       bind:value={searchTerm}/>
+                <ul class="list bg-base-100 rounded-box shadow-md w-full">
+                    <input type="text" class="input input-sm outline-none border-accent m-2 w-85 "
+                           placeholder="Search friends"
+                           bind:value={searchTerm}/>
 
-                {#each filteredFriends as friend}
-                    <div>
-                        <label class="label">
-                            <input type="checkbox" checked={selectedFriends.includes(friend)} class="checkbox"/>
-                            {friend.username}
-                        </label>
-                    </div>
-                {/each}
+                    {#each filteredFriends as user}
+                        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <li class="list-row cursor-pointer {selectedFriends.includes(user) ? 'bg-red-100' : ''}"
+                            onclick={() => toggleFriendSelection(user)}>
+                            <div>
+                                <img class="size-10 rounded-box" alt="Tailwind CSS list item"
+                                     src={`${API_ROOT}/avatars/${user.id}`}
+                                />
+                            </div>
+                            <div>
+                                <div>{user.username}</div>
+                                <div class="text-xs uppercase font-semibold opacity-60">{user.description || 'No description'}</div>
+                            </div>
+
+                        </li>
+
+                    {/each}
+                </ul>
 
             {/if}
 
             <div class="modal-action">
-                <form method="dialog" onsubmit={handleCreateGroup}>
+                <form method="dialog">
                     {#if selectedFriends.length}
-                        <button class="btn" type="submit">Create</button>
+                        <button class="btn" onclick={handleCreateGroup}>Create</button>
                     {/if}
-
-                    <button class="btn" type="button" onclick={() => {
-                         document.querySelector<HTMLDialogElement>("#create_group_dialog")?.close();creatingGroup = false}}>
-                        Cancel
-                    </button>
+                    <button class="btn" type="button" onclick={toggleGroupModal}>Cancel</button>
                 </form>
             </div>
         </div>

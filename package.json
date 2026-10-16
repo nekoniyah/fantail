@@ -28,6 +28,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/bun": "^1.4.3",
     "@types/chalk": "^2.2.4",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.3.0",
     "@types/passport": "^1.0.17",
@@ -52,7 +53,7 @@
     "dev:api": "bun --watch src/index.ts",
     "dev:client": "bunx --bun vite dev",
     "dev": "concurrently \"bun run dev:api\" \"bun run dev:client\"",
-    "build": "bunx --bun vite build",
+    "build": "bunx --bun vite build"
   },
   "trustedDependencies": [
     "@parcel/watcher",

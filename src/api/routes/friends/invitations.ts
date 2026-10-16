@@ -45,6 +45,20 @@ router.post("/", auth, async (req, res) => {
 
     if (!targetUser) return res.status(404).json({error: "User not found"})
 
+
+    const isAlreadyFriends = await prisma.user.findFirst({
+        where: {
+            id: user.id,
+            friends: {
+                some: {
+                    id: targetId
+                }
+            }
+        }
+    })
+
+    if (isAlreadyFriends) return res.status(400).json({error: "You are already friends with this user"})
+
     const existingInvitation = await prisma.friendInvitation.findFirst({
         where: {
             targetId,

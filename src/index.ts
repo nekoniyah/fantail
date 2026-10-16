@@ -6,20 +6,10 @@ import FantailLogger from "@fantail/logger";
 
 const app = express();
 
-const port = process.env.PORT;
-const discoveryServerHost = process.env.DISCOVERY_SERVICE_HOST;
-
-if (!port) {
-    FantailLogger.error("Port is required");
-    throw new Error("Port is required");
-}
+const port = process.env.PORT || 4000;
 
 FantailLogger.info("Starting server...");
 
-if (!discoveryServerHost)
-    FantailLogger.warning(
-        "No discovery server host provided. This instance will not show up anywhere.",
-    );
 
 app.use("/api", api)
 

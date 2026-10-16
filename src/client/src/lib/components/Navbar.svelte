@@ -2,7 +2,13 @@
     import {page} from '$app/state';
     import {API_ROOT} from '#lib';
     import {invitations, sentInvitations, token, user} from "#lib/stores.ts";
-    import {createFriendRequest, fetchFilteredUsers, fetchInvitations, fetchSentInvitations} from "#lib/api.ts";
+    import {
+        createFriendRequest,
+        fetchFilteredUsers,
+        fetchInvitations,
+        fetchMe,
+        fetchSentInvitations
+    } from "#lib/api.ts";
 
     let searchFieldValue = $state<string>()
 
@@ -10,24 +16,21 @@
     $effect(() => {
         page.url.pathname;
 
-        const lctoken = localStorage.getItem('token');
-        token.set(lctoken)
-
-        fetch(`${API_ROOT}/users/@me`, {
-            headers: {
-                Authorization: `Bearer ${lctoken}`
-            }
-        })
-            .then((r) => (r.ok ? r.json() : null)).then(data => {
-            if (data) user.set(data);
-            return data;
-        }).catch((err) => {
-            console.log(err)
-        });
-
-        fetchSentInvitations().then(async r => await r.json()).then(sentInvitations.set)
-        fetchInvitations().then(async r => await r.json()).then(invitations.set)
+        const localToken = localStorage.getItem('token');
+        token.set(localToken)
     });
+
+
+    $effect(() => {
+        $token;
+        (async () => {
+            const data = await fetchMe();
+            if (data) user.set(data);
+
+            fetchSentInvitations().then(async r => await r.json()).then(sentInvitations.set)
+            fetchInvitations().then(async r => await r.json()).then(invitations.set)
+        })()
+    })
 
     async function addFriend(userId: string) {
         await createFriendRequest(userId);
@@ -48,7 +51,6 @@
 
                 {#await fetchFilteredUsers(searchFieldValue) then users}
                     {#each users as user}
-
                         <li class="list-row">
                             <div>
                                 <img class="size-10 rounded-box" alt="Tailwind CSS list item"
@@ -73,7 +75,6 @@
 
                     {/each}
                 {/await}
-
             </ul>
         {/if}
         <div class="dropdown dropdown-end">
