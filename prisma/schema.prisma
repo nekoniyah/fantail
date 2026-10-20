@@ -31,6 +31,9 @@ model User {
   avatar Avatar?
   banner Banner?
 
+  avatarUrl String?
+  bannerUrl String?
+
   groups        Group[]
   groupMessages GroupMessage[]
 

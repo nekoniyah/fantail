@@ -1,11 +1,11 @@
 <script lang="ts">
-    import {onMount} from "svelte";
-    import {goto} from "$app/navigation";
-    import {user} from "#lib/stores.ts";
+  import { onMount } from "svelte";
+  import { token, user } from "#lib/stores.ts";
 
-    onMount(async () => {
-        localStorage.removeItem("token");
-        user.set(null)
-        await goto("/login");
-    })
+  onMount(async () => {
+    localStorage.removeItem("token");
+    token.set(null);
+    user.set(null);
+    window.location.href = "/login";
+  });
 </script>

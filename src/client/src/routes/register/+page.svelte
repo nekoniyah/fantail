@@ -27,7 +27,7 @@
         if (res.ok) {
             success = data.message ?? "Login successful";
             localStorage.setItem("token", data.token);
-            await goto("/profile");
+            window.location.assign("/profile");
         } else {
             error = data.message ?? "Login failed";
         }
