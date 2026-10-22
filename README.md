@@ -34,7 +34,7 @@ We, the author and contributors promise a open-source project that is secure by 
 
 You can count on our values and interests to bring a better life for everyone, including users, yourselves and people concerned by privacy. We can count on your expertise to do so and bring advanced privacy, security and moderation to life.
 
-## About Moderation\*\*
+## About Moderation
 
 We **won't** use AI tools to moderate autonomously. We can at least use tools to help flagging illegal content and we **will** listen to user reports to act quick. **Tho, we don't have a moderation team yet.**
 
