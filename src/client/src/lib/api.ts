@@ -108,3 +108,18 @@ export async function deleteGroup(id: string) {
     headers: headers(),
   });
 }
+
+export async function fetchNotifications(): Promise<any[] | null> {
+  const response = await fetch(`${API_ROOT}/notifications`, {
+    headers: headers(),
+  });
+  if (!response.ok) return null;
+  return await response.json();
+}
+
+export async function markNotificationAsRead(id: string) {
+  return await fetch(`${API_ROOT}/notifications/${id}/read`, {
+    method: "POST",
+    headers: headers(),
+  });
+}

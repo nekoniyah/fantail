@@ -33,6 +33,7 @@
       success = "Login successful";
       localStorage.setItem("token", json.token);
       token.set(json.token);
+      window.location.href = "/profile";
     } else {
       error = json.message;
     }

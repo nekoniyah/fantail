@@ -34,6 +34,6 @@ export type GroupMessage = {
   content: string;
   group: Group;
   attachments: Attachment[];
-  createdTimestamp: number;
-  updatedTimestamp: number;
+  createdAt: Date;
+  updatedAt: Date;
 };

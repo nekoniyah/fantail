@@ -7,14 +7,15 @@
     sentInvitations,
     token,
     user,
+    notifications,
   } from "#lib/stores.ts";
-  import type { PublicUser } from "#lib/types.ts";
+
   import {
     createFriendRequest,
     fetchFilteredUsers,
     fetchFriends,
-    fetchInvitations,
     fetchMe,
+    fetchNotifications,
     fetchSentInvitations,
   } from "#lib/api.ts";
 
@@ -34,9 +35,8 @@
       const data = await fetchMe();
       if (data) user.set(data);
 
-      sentInvitations.set(await fetchSentInvitations());
       friends.set(await fetchFriends());
-      invitations.set(await fetchInvitations());
+      notifications.set(await fetchNotifications());
     })();
   });
 
@@ -121,11 +121,11 @@
               : "/default-avatar.png"}
           />
         </div>
-        {#if $invitations}
+        {#if $notifications}
           <div
             class="badge badge-error absolute flex items-center top-7 right-7"
           >
-            {$invitations.length}
+            {$notifications.length}
           </div>
         {/if}
       </div>
@@ -141,7 +141,7 @@
           <li>
             <a href="/invitations"
               >Friend Invitations
-              {#if $invitations && $invitations.length}
+              {#if $notifications && $invitations && $notifications.length && $invitations.length}
                 <span class="badge">{$invitations.length}</span>
               {/if}
             </a>

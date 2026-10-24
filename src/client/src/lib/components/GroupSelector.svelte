@@ -4,9 +4,7 @@
   import { createGroup, deleteGroup, fetchGroups } from "#lib/api.ts";
   import { API_ROOT } from "#lib";
   import ContextMenu from "#lib/components/ContextMenu.svelte";
-  import GroupConversation from "./GroupConversation.svelte";
 
-  let selectedGroup = $state<Group>();
   let fetchedGroups = $state<Group[] | null>(null);
 
   let creatingGroup = $state<boolean>(false);
@@ -49,7 +47,6 @@
     event.preventDefault();
     document.querySelector<HTMLDialogElement>("#create_group_dialog")?.close();
 
-    console.log(selectedFriends);
     const res = await createGroup(selectedFriends.map((friend) => friend.id));
     if (res.ok) fetchedGroups = await fetchGroups();
 
@@ -77,7 +74,7 @@
     ];
   }
 
-  async function onSelectItemForGroup(item: any, group: any) {
+  async function onSelectItemForGroup(item: any) {
     await item.action();
   }
 </script>
@@ -94,12 +91,12 @@
       {#each fetchedGroups as group}
         <ContextMenu
           items={generateContextMenuForGroup(group)}
-          onselect={(item) => onSelectItemForGroup(item, group)}
+          onselect={(item) => onSelectItemForGroup(item)}
         >
           <button
             class="btn btn-lg"
             onclick={() => {
-              selectedGroup = group;
+              window.location.href = `/groups/${group.id}`;
             }}
           >
             <div class="avatar-group -space-x-6">
@@ -177,8 +174,4 @@
       </div>
     </div>
   </dialog>
-
-  {#if selectedGroup}
-    <GroupConversation groupId={selectedGroup.id} />
-  {/if}
 {/if}
