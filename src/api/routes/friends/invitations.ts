@@ -6,7 +6,7 @@ import prisma from "@lib/prisma.ts";
 const router = Router();
 
 router.get("/sent", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
 
   const invitations = await prisma.friendInvitation.findMany({
     where: {
@@ -18,7 +18,7 @@ router.get("/sent", auth, async (req, res) => {
 });
 
 router.get("/", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
 
   const invitations = await prisma.friendInvitation.findMany({
     where: {
@@ -30,7 +30,7 @@ router.get("/", auth, async (req, res) => {
 });
 
 router.post("/", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
 
   const targetId = req.body.targetId as string;
 
@@ -90,7 +90,7 @@ router.post("/", auth, async (req, res) => {
 // Cancel or deny a friend request
 
 router.delete("/:id", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
   const id = req.params.id as string;
 
   const myInvitation = await prisma.friendInvitation.findUnique({
@@ -118,10 +118,10 @@ router.delete("/:id", auth, async (req, res) => {
   });
 });
 
-// Accept an friend request
+// Accept a friend request
 
 router.post("/:id", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
   const id = req.params.id as string;
   const invitation = await prisma.friendInvitation.findUnique({
     where: { id },
@@ -150,9 +150,9 @@ router.post("/:id", auth, async (req, res) => {
   });
 
   await prisma.user.update({
-    where: { id: invitation.targetId },
+    where: { id: invitation.senderId },
     data: {
-      friends: { connect: { id: invitation.senderId } },
+      friends: { connect: { id: invitation.targetId } },
     },
   });
 

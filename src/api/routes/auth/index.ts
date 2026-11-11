@@ -1,7 +1,8 @@
 import { Router } from "express";
 import prisma from "@lib/prisma";
 import { compareSync, hashSync } from "bcrypt";
-import token from "@lib/token";
+
+import * as Iron from "iron-webcrypto";
 import { z } from "zod";
 
 const router = Router();
@@ -16,9 +17,12 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   email: z.nullable(z.email().optional()),
   username: z
-    .string({ error: "Username must be between 4 and 20 characters" })
+    .string({
+      error: "Username must be between 4 and 20 characters. Must be lowercase.",
+    })
     .min(4)
-    .max(20),
+    .max(20)
+    .lowercase(),
   password: z
     .string({
       error:
@@ -62,9 +66,36 @@ router.post("/login", async (req, res) => {
       message: "Invalid password",
     });
 
+  const key = req.cookies["fantail_private_key"] as string;
+  const expirationMs = req.cookies["fantail_expiration"] as string;
+
+  if (!key || !expirationMs)
+    return res.status(400).json({
+      message: "Missing key or expiration",
+    });
+
+  const expiration = new Date(Date.now() + Number(expirationMs));
+
+  const token = await Iron.seal(
+    {
+      id: account.id,
+      username: account.username,
+    },
+    key,
+    Iron.defaults,
+  );
+
+  const session = await prisma.session.create({
+    data: {
+      user: { connect: { id: account.id } },
+      token,
+      expiresAt: expiration,
+    },
+  });
+
   res.status(200).json({
-    message: "Login successful",
-    token: account.token,
+    message: "Successfully logged in",
+    session,
   });
 });
 
@@ -95,28 +126,18 @@ router.post("/register", async (req, res) => {
 
   const hashedPassword = hashSync(password, passwordSalt);
 
-  const usertoken = token();
-
   account = await prisma.user.create({
     data: {
       username,
       password: hashedPassword,
-      token: usertoken,
       email: email ? email : undefined,
     },
   });
 
   res.locals.user = account;
 
-  res.cookie("token", account.token, {
-    httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24 * 3,
-  });
-
   res.status(200).json({
-    account,
     message: "Successfully created account.",
-    token: account.token,
   });
 });
 

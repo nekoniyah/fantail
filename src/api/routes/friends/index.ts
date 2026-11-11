@@ -11,7 +11,7 @@ router.get("/", auth, async (req, res) => {
   const userWithFriends = await prisma.user.findFirst({
     where: { id: user.id },
     include: {
-      friends: { omit: { token: true, email: true, password: true } },
+      friends: { omit: { email: true, password: true } },
     },
   });
 
@@ -30,7 +30,7 @@ router.delete("/:id", auth, async (req, res) => {
   const userWithFriends = await prisma.user.findFirst({
     where: { id: user.id },
     include: {
-      friends: { omit: { token: true, email: true, password: true } },
+      friends: { omit: { email: true, password: true } },
     },
   });
 

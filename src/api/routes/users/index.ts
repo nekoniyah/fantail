@@ -9,7 +9,6 @@ router.get("/", auth, async (req, res) => {
   const filter = req.query.filter as string;
   const allUsers = await prisma.user.findMany({
     omit: {
-      token: true,
       password: true,
       email: true,
     },
@@ -21,7 +20,8 @@ router.get("/", auth, async (req, res) => {
     (user) =>
       user.username.includes(filter) || user.displayName?.includes(filter),
   );
-  return res.json(filteredUsers);
+
+  res.json(filteredUsers);
 });
 
 router.get("/:id", async (req, res, next) => {
@@ -40,7 +40,6 @@ router.get("/:id", async (req, res, next) => {
         username,
       },
       omit: {
-        token: true,
         password: true,
         email: true,
       },
@@ -56,7 +55,6 @@ router.get("/:id", async (req, res, next) => {
       id,
     },
     omit: {
-      token: true,
       password: true,
       email: true,
     },

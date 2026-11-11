@@ -15,8 +15,15 @@ export default function listenEvents(io: Server) {
     }
 
     if (!token) return invalidate();
-    const user = await prisma.user.findFirst({ where: { token } });
-    if (!user) return invalidate();
+
+    const session = await prisma.session.findFirst({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!session) return invalidate();
+
+    const user = session.user;
 
     await listenWebsocketGroupEvents(socket, user, io);
   });

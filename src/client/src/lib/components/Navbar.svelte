@@ -30,18 +30,42 @@
       notifications.set(await fetchNotifications());
     })();
   });
+
+  // Highlights the menu entry for the page you're on
+  const isActive = (href: string) =>
+    page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 </script>
 
-<div class="navbar bg-base-100 h-30 shadow-sm fixed z-100">
+<div
+  class="navbar fixed top-0 z-100 h-30 border-b-2 border-neutral bg-base-100/90 px-4 backdrop-blur"
+>
   <div class="navbar-start h-full">
-    <a class="btn btn-ghost text-xl" href="/">Fantail</a>
+    <a
+      href="/"
+      class="group flex items-center gap-2 font-display text-2xl font-bold text-base-content"
+    >
+      <span
+        class="grid size-10 place-items-center rounded-full border-2 border-neutral bg-primary text-primary-content shadow-[0_3px_0_0_var(--color-neutral)] group-hover:animate-wiggle"
+        aria-hidden="true"
+      >
+        F
+      </span>
+      Fantail
+    </a>
   </div>
-  <div class="navbar-end gap-2 h-full">
+  <div class="navbar-end h-full gap-2">
     <UserSearch />
 
     <div class="dropdown dropdown-end">
-      <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
-        <div class="w-20 rounded-full">
+      <div
+        tabindex="0"
+        role="button"
+        class="btn btn-circle avatar btn-ghost transition-transform hover:-translate-y-0.5"
+        aria-label="Account menu"
+      >
+        <div
+          class="w-40 rounded-full border-2 border-neutral shadow-[0_3px_0_0_var(--color-neutral)]"
+        >
           <img
             alt=""
             src={$user?.avatarUrl
@@ -51,7 +75,7 @@
         </div>
         {#if $notifications && $notifications.length}
           <div
-            class="badge badge-error absolute flex items-center top-7 right-7"
+            class="badge absolute top-7 right-7 flex items-center border-2 border-neutral badge-primary font-bold"
           >
             {$notifications.length}
           </div>
@@ -59,26 +83,56 @@
       </div>
       <ul
         tabindex="-1"
-        class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow"
+        class="menu dropdown-content z-1 mt-3 w-52 gap-1 rounded-box border-2 border-neutral bg-base-100 p-2 shadow-[0_5px_0_0_var(--color-neutral)] menu-sm"
       >
         {#if $user}
           <li>
-            <!-- svelte-ignore a11y_missing_attribute -->
-            <a class="justify-between" href="/profile"> Profile </a>
+            <a
+              class={["justify-between", isActive("/profile") && "menu-active"]}
+              href="/profile"
+              aria-current={isActive("/profile") ? "page" : undefined}
+            >
+              Profile
+            </a>
           </li>
           <li>
-            <a href="/invitations"
-              >Friend Invitations
+            <a
+              class={isActive("/invitations") ? "menu-active" : undefined}
+              href="/invitations"
+              aria-current={isActive("/invitations") ? "page" : undefined}
+            >
+              Friend Invitations
               {#if $invitations && $invitations.length}
-                <span class="badge">{$invitations.length}</span>
+                <span
+                  class="badge border-2 border-neutral badge-secondary font-bold"
+                  >{$invitations.length}</span
+                >
               {/if}
             </a>
           </li>
-          <li><a href="/settings">Settings</a></li>
+          <li>
+            <a
+              class={isActive("/settings") ? "menu-active" : undefined}
+              href="/settings"
+              aria-current={isActive("/settings") ? "page" : undefined}
+            >
+              Settings
+            </a>
+          </li>
           <li><a href="/logout">Logout</a></li>
         {:else}
-          <li><a href="/login">Login</a></li>
-          <li><a href="/register">Register</a></li>
+          <li>
+            <a
+              class={isActive("/login") ? "menu-active" : undefined}
+              href="/login">Login</a
+            >
+          </li>
+          <li>
+            <a
+              class={isActive("/register") ? "menu-active" : undefined}
+              href="/register">Register</a
+            >
+          </li>
         {/if}
       </ul>
     </div>

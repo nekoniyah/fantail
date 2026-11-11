@@ -23,7 +23,13 @@ const api = Router();
 api.use(express.json());
 api.use(express.urlencoded());
 api.use(helmet());
-api.use(cors({ origin: "*", exposedHeaders: ["Content-Type"] }));
+api.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+    exposedHeaders: ["Content-Type"],
+  }),
+);
 api.use(requestLogger);
 
 api.use(cookieParser());

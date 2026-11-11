@@ -19,7 +19,7 @@ export async function listenWebsocketGroupEvents(
       const dbGroup = await prisma.group.findFirst({
         where: { id: groupId },
         include: {
-          members: { omit: { email: true, token: true, password: true } },
+          members: { omit: { email: true, password: true } },
         },
       });
 
@@ -48,7 +48,7 @@ export async function listenWebsocketGroupEvents(
         orderBy: { createdAt: "asc" },
         include: {
           attachments: true,
-          sender: { omit: { password: true, token: true, email: true } },
+          sender: { omit: { password: true, email: true } },
         },
       });
 
@@ -69,7 +69,7 @@ export async function listenWebsocketGroupEvents(
           attachments: { connect: attachmentIds.map((id) => ({ id })) },
         },
         include: {
-          sender: { omit: { password: true, token: true, email: true } },
+          sender: { omit: { password: true, email: true } },
           attachments: true,
           group: true,
         },

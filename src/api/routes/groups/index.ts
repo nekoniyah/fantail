@@ -12,7 +12,7 @@ export async function fetchGroup(id: string, user: User, res: Response) {
       id,
     },
     include: {
-      members: { omit: { token: true, email: true, password: true } },
+      members: { omit: { email: true, password: true } },
     },
   });
 
@@ -40,7 +40,7 @@ router.get("/", auth, async (req, res) => {
     include: {
       groups: {
         include: {
-          members: { omit: { token: true, email: true, password: true } },
+          members: { omit: { email: true, password: true } },
           messages: true,
         },
       },
@@ -50,12 +50,12 @@ router.get("/", auth, async (req, res) => {
   const ownedGroups = await prisma.group.findMany({
     where: { ownerId: user.id },
     include: {
-      members: { omit: { token: true, email: true, password: true } },
+      members: { omit: { email: true, password: true } },
       messages: true,
     },
   });
 
-  res.json([...(myGroups ? myGroups.groups : []), ...ownedGroups]);
+  res.json(myGroups?.groups.concat(ownedGroups) ?? ownedGroups);
 });
 
 router.get("/:id", auth, async (req, res) => {

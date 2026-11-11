@@ -66,7 +66,18 @@ export async function fetchGroups(): Promise<any[] | null> {
     headers: headers(),
   });
   if (!response.ok) return null;
-  return await response.json();
+  let res = await response.json();
+
+  res = Promise.all(
+    res.map(async (group: any) => {
+      group.owner = await fetchUser(group.ownerId);
+      return group;
+    }),
+  );
+
+  console.log(res);
+
+  return res;
 }
 
 export async function fetchGroup(id: string): Promise<any> {

@@ -1,98 +1,112 @@
 <script lang="ts">
   import { API_ROOT } from "#lib";
-  import { goto } from "$app/navigation";
+  import { Button, Card, Input, Link } from "#lib/components/index.ts";
+
+  let username = $state("");
+  let password = $state("");
+  let email = $state("");
 
   let error: string | null = $state(null);
   let success: string | null = $state(null);
+  let loading = $state(false);
 
-  async function handleRegister(ev: MouseEvent) {
+  async function handleRegister(ev: SubmitEvent) {
     ev.preventDefault();
 
-    const fieldset = document.querySelector("fieldset") as HTMLFieldSetElement;
+    error = null;
+    success = null;
+    loading = true;
 
-    const usernameInput = fieldset.elements.namedItem(
-      "username",
-    ) as HTMLInputElement;
-    const passwordInput = fieldset.elements.namedItem(
-      "password",
-    ) as HTMLInputElement;
-    const emailInput = fieldset.elements.namedItem("email") as HTMLInputElement;
+    try {
+      const res = await fetch(`${API_ROOT}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          password,
+          email: email || undefined,
+        }),
+      });
 
-    const res = await fetch(`${API_ROOT}/auth/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username: usernameInput.value,
-        password: passwordInput.value,
-        email: emailInput.value || undefined,
-      }),
-    });
+      const data = await res.json();
 
-    const data = await res.json();
+      if (res.ok) {
+        success = data.message ?? "Registration successful";
+        localStorage.setItem("token", data.token);
 
-    if (res.ok) {
-      success = data.message ?? "Login successful";
-      localStorage.setItem("token", data.token);
-
-      window.location.href = "/profile";
-    } else {
-      error = data.message ?? "Login failed";
+        window.location.href = "/profile";
+      } else {
+        error = data.message ?? "Registration failed";
+      }
+    } catch {
+      error = "Could not reach the server. Please try again.";
+    } finally {
+      loading = false;
     }
   }
 </script>
 
-<div class="card text-neutral-content mx-auto top-50 w-xl">
-  <div class="card-body items-center text-center w-full h-full">
-    <fieldset
-      class="fieldset border-base-300 rounded-box w-full h-full border p-4"
-    >
-      <legend class="fieldset-legend card-title">Register</legend>
-
-      <label class="label" for="username">Username</label>
-      <input
-        type="text"
-        class="input input-lg w-full"
+<div class="mx-auto mt-[30vh] w-full max-w-xl px-4">
+  <Card title="Register" class="w-full">
+    <form onsubmit={handleRegister} class="flex flex-col gap-1">
+      <Input
+        label="Username"
         name="username"
-        id="username"
         placeholder="Username"
+        size="lg"
+        autocomplete="username"
         required
+        bind:value={username}
       />
 
-      <label class="label" for="password">Password</label>
-      <input
-        type="password"
-        class="input input-lg w-full"
+      <Input
+        label="Password"
         name="password"
-        id="password"
+        type="password"
         placeholder="Password"
+        size="lg"
+        autocomplete="new-password"
         required
+        bind:value={password}
       />
 
-      <label class="label" for="email">Email (optional)</label>
-      <input
-        type="email"
+      <Input
+        label="Email (optional)"
         name="email"
-        class="input input-lg w-full"
-        placeholder="Email (optional)"
+        type="email"
+        placeholder="you@example.com"
+        size="lg"
+        autocomplete="email"
+        bind:value={email}
       />
 
       {#if error}
-        <p class="alert alert-error">{error}</p>
+        <div
+          role="alert"
+          class="alert mt-2 border-2 border-neutral alert-error font-bold"
+        >
+          {error}
+        </div>
       {/if}
 
       {#if success}
-        <p class="alert alert-success">{success}</p>
+        <div
+          role="alert"
+          class="alert mt-2 border-2 border-neutral alert-success font-bold"
+        >
+          {success}
+        </div>
       {/if}
 
-      <p>Already have an account? <a href="/login">Login</a></p>
+      <Button type="submit" size="lg" block {loading} class="mt-4"
+        >Register</Button
+      >
 
-      <div class="justify-end">
-        <button class="btn btn-neutral mt-4" onclick={handleRegister}
-          >Register</button
-        >
-      </div>
-    </fieldset>
-  </div>
+      <p class="mt-4 text-center">
+        Already have an account? <Link href="/login">Login</Link>
+      </p>
+    </form>
+  </Card>
 </div>

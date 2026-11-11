@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { API_ROOT } from "#lib";
   import { uploadAttachment } from "#lib/api.ts";
   import getSocket from "#lib/io.ts";
   import { token, user } from "#lib/stores.ts";
   import type { GroupMessage } from "#lib/types.ts";
+  import { Button, EmptyState, Input, Link } from "#lib/components/index.ts";
   import ContextMenu from "./ContextMenu.svelte";
 
   const { groupId }: { groupId: string } = $props();
@@ -11,44 +13,85 @@
 
   let messages = $state<GroupMessage[]>([]);
 
-  $effect(() => {
-    if ($user && $token) {
-      const socket = getSocket();
-
-      socket.emit("group:select", groupId, async (res: any) => {
-        if (!res) return;
-
-        socket.emit(
-          "group:messages:retrieve",
-          async (messagesx: GroupMessage[]) => {
-            messages = messagesx;
-            valid = true;
-          },
-        );
-      });
-
-      socket.on("group:messages:send", async (message: GroupMessage) => {
-        messages = [...messages, message];
-      });
-
-      socket.on("group:messages:delete", async (messageId: string) => {
-        messages = messages.filter((message) => message.id !== messageId);
-      });
-    }
-  });
-
+  let draft = $state("");
   let uploadedFileIds = $state<string[]>([]);
+  let uploading = $state(false);
+  let uploadError = $state<string>();
 
-  async function sendMessage(event: SubmitEvent) {
-    event.preventDefault();
-    const formData = new FormData(event.target as HTMLFormElement);
-    const content = formData.get("content") as string;
+  let fileInput: HTMLInputElement | undefined = $state();
+  let scroller: HTMLDivElement | undefined = $state();
+  let stickToBottom = true;
+
+  const canSend = $derived(!!draft.trim() || uploadedFileIds.length > 0);
+
+  const timeFormat = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+  const formatTime = (value: string | Date) =>
+    timeFormat.format(new Date(value));
+
+  $effect(() => {
+    if (!$user || !$token) return;
 
     const socket = getSocket();
-    socket.emit("group:messages:send", content, uploadedFileIds);
 
-    (event.target as HTMLFormElement).reset();
+    const onSend = (message: GroupMessage) => {
+      messages = [...messages, message];
+    };
+
+    const onDelete = (messageId: string) => {
+      messages = messages.filter((message) => message.id !== messageId);
+    };
+
+    socket.on("group:messages:send", onSend);
+    socket.on("group:messages:delete", onDelete);
+
+    socket.emit("group:select", groupId, async (res: any) => {
+      if (!res) return;
+
+      socket.emit(
+        "group:messages:retrieve",
+        async (messagesx: GroupMessage[]) => {
+          messages = messagesx;
+          valid = true;
+        },
+      );
+    });
+
+    // Without this, every re-run stacked another set of listeners
+    // and each new message showed up multiple times.
+    return () => {
+      socket.off("group:messages:send", onSend);
+      socket.off("group:messages:delete", onDelete);
+    };
+  });
+
+  // Keep the newest message in view, unless you've scrolled up to read history
+  $effect(() => {
+    messages.length;
+    tick().then(() => {
+      if (stickToBottom) scroller?.scrollTo({ top: scroller.scrollHeight });
+    });
+  });
+
+  function handleScroll() {
+    if (!scroller) return;
+    stickToBottom =
+      scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
+  }
+
+  function sendMessage(event: SubmitEvent) {
+    event.preventDefault();
+    if (!canSend) return;
+
+    const socket = getSocket();
+    socket.emit("group:messages:send", draft.trim(), uploadedFileIds);
+
+    draft = "";
     uploadedFileIds = [];
+    uploadError = undefined;
+    stickToBottom = true;
   }
 
   function generateContextMenuForMessage(message: GroupMessage) {
@@ -87,52 +130,66 @@
   }
 
   function openAttachmentDialog() {
-    const fileInput = document.querySelector("#file") as HTMLInputElement;
-    if (fileInput) {
-      fileInput.click();
-    }
+    fileInput?.click();
   }
 
   async function handleFileChange(event: Event) {
     const target = event.target as HTMLInputElement;
     const files = target.files;
 
-    if (!files) return;
+    if (!files?.length) return;
 
-    for (let file of files) {
-      const r = await uploadAttachment(file);
+    uploadError = undefined;
+    uploading = true;
 
-      if ("media" in r) {
-        uploadedFileIds = [...uploadedFileIds, r.media.id];
+    try {
+      for (const file of files) {
+        const r = await uploadAttachment(file);
+
+        if ("media" in r) {
+          uploadedFileIds = [...uploadedFileIds, r.media.id];
+        } else {
+          uploadError = `Could not upload ${file.name}`;
+        }
       }
+    } finally {
+      uploading = false;
+      // Lets the same file be picked again later
+      target.value = "";
     }
+  }
+
+  function removeAttachment(fileId: string) {
+    uploadedFileIds = uploadedFileIds.filter((id) => id !== fileId);
   }
 </script>
 
 {#if valid}
   <input
+    bind:this={fileInput}
     type="file"
     name="file"
-    id="file"
-    style="display: none;"
+    class="hidden"
+    multiple
     onchange={handleFileChange}
-    min="1"
-    max="20"
-    maxlength="20"
   />
 
-  <div
-    class="messages bottom-30 w-full h-[calc(100vh-120px-60px-60px)] overflow-y-scroll absolute"
-  >
-    {#key messages.length}
+  <!-- Fills the space under the fixed navbar (h-30) -->
+  <div class="fixed inset-x-0 top-30 bottom-0 flex flex-col bg-base-200">
+    <div
+      bind:this={scroller}
+      onscroll={handleScroll}
+      class="mx-auto w-full max-w-3xl grow overflow-y-auto px-4 py-4"
+    >
       {#each messages as message (message.id)}
+        {@const mine = message.sender.id === $user?.id}
         <ContextMenu
           items={generateContextMenuForMessage(message)}
           onselect={(item) => onSelectItemForMessage(item)}
         >
-          <div class="chat chat-start w-full">
+          <div class={["chat w-full", mine ? "chat-end" : "chat-start"]}>
             <div class="chat-image avatar">
-              <div class="w-10 rounded-full">
+              <div class="w-10 rounded-full border-2 border-neutral">
                 <img
                   alt=""
                   src={message.sender.avatarUrl
@@ -141,77 +198,102 @@
                 />
               </div>
             </div>
-            <div class="chat-header">
+            <div class="chat-header font-bold">
               {message.sender.displayName || message.sender.username}
-              <time class="text-xs opacity-50">{message.createdAt}</time>
+              <time class="text-xs font-normal opacity-60"
+                >{formatTime(message.createdAt)}</time
+              >
             </div>
-            <div class="chat-bubble">
-              {message.content}
+            <div
+              class={[
+                "chat-bubble flex flex-col gap-2",
+                mine ? "chat-bubble-primary" : "chat-bubble-secondary",
+              ]}
+            >
+              {#if message.content}
+                <p class="wrap-break-word whitespace-pre-wrap">
+                  {message.content}
+                </p>
+              {/if}
+
+              {#each message.attachments as attachment (attachment.id)}
+                <img
+                  src={`${API_ROOT}/files/${attachment.id}`}
+                  alt="Attachment"
+                  class="max-h-72 rounded-box object-contain"
+                />
+              {/each}
             </div>
           </div>
         </ContextMenu>
+      {:else}
+        <EmptyState
+          icon="💬"
+          title="No messages yet"
+          description="Say hi and start the conversation."
+          class="mt-10"
+        />
+      {/each}
+    </div>
 
-        {#if message.attachments.length > 0}
-          <div class="attachments flex relative left-[3vw] w-fit">
-            {#each message.attachments as attachment (attachment.id)}
-              <img
-                src={`${API_ROOT}/files/${attachment.id}`}
-                alt="Attachment"
-                class="w-100 object-contain"
-              />
+    <div class="border-t-2 border-neutral bg-base-100">
+      <!-- Right padding keeps Send clear of the floating Groups button -->
+      <div class="mx-auto flex w-full max-w-3xl flex-col gap-3 py-3 pr-24 pl-4">
+        {#if uploadedFileIds.length}
+          <div class="flex items-center gap-3 overflow-x-auto p-2">
+            {#each uploadedFileIds as fileId (fileId)}
+              <div class="relative shrink-0">
+                <img
+                  src={`${API_ROOT}/files/${fileId}`}
+                  alt="Uploaded file preview"
+                  class="size-20 rounded-box border-2 border-neutral object-cover"
+                />
+                <button
+                  type="button"
+                  class="btn absolute -top-2 -right-2 border-2 border-neutral btn-circle btn-xs btn-primary"
+                  aria-label="Remove attachment"
+                  onclick={() => removeAttachment(fileId)}
+                >
+                  ✕
+                </button>
+              </div>
             {/each}
           </div>
         {/if}
-      {/each}
-    {/key}
-  </div>
 
-  <div
-    class="flex flex-col items-center justify-start absolute bottom-0 w-full p-4 bg-gray-100"
-  >
-    <div
-      class="file-previews flex flex-row items-center justify-start w-full overflow-x-auto"
-    >
-      {#each uploadedFileIds as fileId (fileId)}
-        <div class="file-preview">
-          <img
-            src={`${API_ROOT}/files/${fileId}`}
-            alt="Uploaded file preview"
-            class="w-20 h-20 object-cover"
+        {#if uploadError}
+          <p role="alert" class="font-bold text-error">{uploadError}</p>
+        {/if}
+
+        <form onsubmit={sendMessage} class="flex items-center gap-2">
+          <Button
+            variant="outline"
+            class="btn-circle"
+            aria-label="Attach files"
+            loading={uploading}
+            onclick={openAttachmentDialog}
+          >
+            +
+          </Button>
+          <Input
+            placeholder="Type your message..."
+            aria-label="Message"
+            autocomplete="off"
+            bind:value={draft}
           />
-        </div>
-      {/each}
+          <Button type="submit" disabled={!canSend}>Send</Button>
+        </form>
+      </div>
     </div>
-
-    <form
-      onsubmit={sendMessage}
-      class="flex items-center justify-start w-full p-4 bg-gray-100"
-    >
-      <!-- svelte-ignore a11y_consider_explicit_label -->
-      <button
-        type="button"
-        class="btn btn-ghost mr-2"
-        onclick={openAttachmentDialog}
-      >
-        +
-      </button>
-      <input
-        type="text"
-        name="content"
-        placeholder="Type your message..."
-        class="input input-bordered w-[80%] mr-2"
-      />
-      <button type="submit" class="btn btn-primary">Send</button>
-    </form>
   </div>
-{/if}
-
-{#if !valid}
-  <div class="absolute top-50 left-20">
-    <div class="text-gray-500">
-      You might not be logged in. <a href="/login" class="link link-primary"
-        >Login</a
-      >.
-    </div>
+{:else}
+  <div class="mx-auto mt-40 w-full max-w-md px-4">
+    <EmptyState
+      icon="🔒"
+      title="Can't open this chat"
+      description="You might not be logged in."
+    >
+      <Link href="/login">Login</Link>
+    </EmptyState>
   </div>
 {/if}

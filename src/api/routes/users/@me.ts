@@ -3,35 +3,62 @@ import { compareSync, hashSync } from "bcrypt";
 import prisma from "@lib/prisma";
 import auth from "@middlewares/auth.ts";
 import type { User } from "@prisma";
+import z from "zod";
 
 const router = Router();
 const passwordSalt = Number(process.env.PASSWORD_SALT);
+
+const updateSelfSchema = z.object({
+  email: z.nullable(z.email().optional()),
+  username: z.nullable(z.string().min(1).optional()),
+  oldPassword: z.nullable(z.string().min(1).optional()),
+  password: z.nullable(
+    z
+      .string({
+        error:
+          "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+      })
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+      )
+      .optional(),
+  ),
+  displayName: z.nullable(z.string().min(4).optional()),
+  description: z.nullable(z.string().min(1).optional()),
+});
 
 router.put("/", auth, async (req, res) => {
   const self = (req as any).user as User;
   const body = req.body;
 
+  const { data, success, error } = await updateSelfSchema.safeParseAsync(body);
+
+  if (!success)
+    return res.status(400).json({
+      message: error.message,
+    });
+
   let newPassword: string | undefined;
 
-  if (body.password) {
-    if (!body.oldPassword)
+  if (data.password) {
+    if (!data.oldPassword)
       return res.status(400).json({ message: "Old password is required" });
 
     // Check if old password is correct (match self.password)
 
-    if (!compareSync(body.oldPassword, self.password))
+    if (!compareSync(data.oldPassword, self.password))
       return res.status(400).json({ message: "Old password is incorrect" });
 
-    newPassword = hashSync(body.password, passwordSalt);
+    newPassword = hashSync(data.password, passwordSalt);
   }
 
   await prisma.user.update({
     where: { id: self.id },
     data: {
       password: newPassword,
-      displayName: body.displayName ? body.displayName : undefined,
-      username: body.username ? body.username : undefined,
-      description: body.description ? body.description : undefined,
+      displayName: data.displayName ? data.displayName : undefined,
+      username: data.username ? data.username : undefined,
+      description: data.description ? data.description : undefined,
     },
   });
 

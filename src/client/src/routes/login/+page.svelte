@@ -1,84 +1,112 @@
 <script lang="ts">
   import { API_ROOT } from "#lib";
   import { token } from "#lib/stores.ts";
+  import { Button, Card, Input, Link } from "#lib/components/index.ts";
+
+  let emailOrUsername = $state("");
+  let password = $state("");
 
   let error = $state<string>();
   let success = $state<string>();
+  let loading = $state(false);
 
-  async function handleLogin(ev: MouseEvent) {
+  async function handleLogin(ev: SubmitEvent) {
     ev.preventDefault();
 
-    const fieldset = document.querySelector("fieldset") as HTMLFieldSetElement;
+    error = undefined;
+    success = undefined;
+    loading = true;
 
-    const emailOrUsernameInput = fieldset.elements.namedItem(
-      "emailOrUsername",
-    ) as HTMLInputElement;
-    const passwordInput = fieldset.elements.namedItem(
-      "password",
-    ) as HTMLInputElement;
+    try {
+      let fantailPrivateKey = await cookieStore.get("fantail_private_key");
 
-    const res = await fetch(`${API_ROOT}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        emailOrUsername: emailOrUsernameInput.value,
-        password: passwordInput.value,
-      }),
-    });
+      if (!fantailPrivateKey) {
+        const key = crypto.randomUUID();
+        await cookieStore.set("fantail_private_key", key);
+        await cookieStore.set(
+          "fantail_expiration",
+          String(60 * 60 * 24 * 1000),
+        ); // 24 hours in milliseconds
+      }
 
-    const json = await res.json();
-    if (res.ok) {
-      success = "Login successful";
-      localStorage.setItem("token", json.token);
-      token.set(json.token);
-      window.location.href = "/profile";
-    } else {
-      error = json.message;
+      const res = await fetch(`${API_ROOT}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          emailOrUsername,
+          password,
+        }),
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const json = await res.json();
+      if (res.ok) {
+        success = "Login successful";
+        localStorage.setItem("token", json.session.token);
+        token.set(json.session.token);
+        window.location.href = "/profile";
+      } else {
+        error = json.message ?? "Login failed";
+      }
+    } catch {
+      error = "Something went wrong. Please try again.";
+    } finally {
+      loading = false;
     }
   }
 </script>
 
-<div class="card text-neutral-content mx-auto top-50 w-xl">
-  <div class="card-body items-center text-center w-full h-full">
-    <fieldset
-      class="fieldset border-base-300 rounded-box w-full h-full border p-4"
-    >
-      <legend class="fieldset-legend card-title">Login</legend>
-
-      <label class="label" for="emailOrUsername">Email</label>
-      <input
-        type="text"
-        class="input input-lg w-full"
+<div class="mx-auto mt-[30vh] w-full max-w-xl px-4">
+  <Card title="Login" class="w-full">
+    <form onsubmit={handleLogin} class="flex flex-col gap-1">
+      <Input
+        label="Email or username"
         name="emailOrUsername"
-        id="emailOrUsername"
         placeholder="Email or username"
+        size="lg"
+        autocomplete="username"
+        required
+        bind:value={emailOrUsername}
       />
 
-      <label class="label" for="password">Password</label>
-      <input
-        type="password"
-        class="input input-lg w-full"
+      <Input
+        label="Password"
         name="password"
-        id="password"
+        type="password"
         placeholder="Password"
+        size="lg"
+        autocomplete="current-password"
+        required
+        bind:value={password}
       />
 
       {#if error}
-        <p class="alert alert-error">{error}</p>
+        <div
+          role="alert"
+          class="alert mt-2 border-2 border-neutral alert-error font-bold"
+        >
+          {error}
+        </div>
       {/if}
 
       {#if success}
-        <p class="alert alert-success">{success}</p>
+        <div
+          role="alert"
+          class="alert mt-2 border-2 border-neutral alert-success font-bold"
+        >
+          {success}
+        </div>
       {/if}
 
-      <p>Don't have an account? <a href="/register">Register</a></p>
+      <Button type="submit" size="lg" block {loading} class="mt-4">Login</Button
+      >
 
-      <div class="justify-end">
-        <button class="btn btn-neutral mt-4" onclick={handleLogin}>Login</button
-        >
-      </div>
-    </fieldset>
-  </div>
+      <p class="mt-4 text-center">
+        Don't have an account? <Link href="/register">Register</Link>
+      </p>
+    </form>
+  </Card>
 </div>
