@@ -1,13 +1,14 @@
 import { Router } from "express";
-import { compareSync } from "bcrypt";
+import { compareSync, hashSync } from "bcrypt";
 import prisma from "@lib/prisma";
 import auth from "@middlewares/auth.ts";
 import type { User } from "@prisma";
 
 const router = Router();
+const passwordSalt = Number(process.env.PASSWORD_SALT);
 
 router.put("/", auth, async (req, res) => {
-  const self = req.user as User;
+  const self = (req as any).user as User;
   const body = req.body;
 
   let newPassword: string | undefined;
@@ -21,7 +22,7 @@ router.put("/", auth, async (req, res) => {
     if (!compareSync(body.oldPassword, self.password))
       return res.status(400).json({ message: "Old password is incorrect" });
 
-    newPassword = body.password;
+    newPassword = hashSync(body.password, passwordSalt);
   }
 
   await prisma.user.update({

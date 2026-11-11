@@ -123,3 +123,18 @@ export async function markNotificationAsRead(id: string) {
     headers: headers(),
   });
 }
+
+export async function uploadAttachment(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_ROOT}/files`, {
+    method: "POST",
+    body: formData,
+    headers: headers(),
+  });
+
+  if (res.ok) {
+    return (await res.json()) as { path: string; media: any };
+  } else return (await res.json()) as { message: string; media?: any };
+}

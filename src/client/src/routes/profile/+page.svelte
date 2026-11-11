@@ -21,6 +21,7 @@
       const res = await updateAvatar(file);
       if (res.ok) {
         success = "Avatar updated";
+        $user!.avatarUrl = `/avatars/${$user!.id}?t=${Date.now()}`;
       } else {
         error = "Failed to update avatar";
       }

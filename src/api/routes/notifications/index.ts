@@ -6,7 +6,7 @@ import type { User } from "@prisma";
 const router = Router();
 
 router.get("/", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
 
   const notifications = await prisma.notification.findMany({
     where: {
@@ -18,7 +18,7 @@ router.get("/", auth, async (req, res) => {
 });
 
 router.post("/:id/read", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
   const notificationId = req.params.id as string;
 
   const notification = await prisma.notification.findUnique({

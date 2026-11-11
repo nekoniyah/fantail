@@ -33,7 +33,7 @@ export async function fetchGroup(id: string, user: User, res: Response) {
 }
 
 router.get("/", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
 
   const myGroups = await prisma.user.findFirst({
     where: { id: user.id },
@@ -61,12 +61,12 @@ router.get("/", auth, async (req, res) => {
 router.get("/:id", auth, async (req, res) => {
   const id = req.params.id as string;
 
-  const group = await fetchGroup(id, req.user as User, res);
+  const group = await fetchGroup(id, (req as any).user as User, res);
   res.json(group);
 });
 
 router.post("/", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
 
   const userWithFriends = await prisma.user.findFirst({
     where: { id: user.id },
@@ -99,7 +99,7 @@ router.post("/", auth, async (req, res) => {
 
 router.delete("/:id", auth, async (req, res) => {
   const id = req.params.id as string;
-  const user = req.user as User;
+  const user = (req as any).user as User;
 
   const isOwner = await prisma.group.findFirst({
     where: { id, ownerId: user.id },

@@ -56,24 +56,28 @@ export async function listenWebsocketGroupEvents(
     },
   );
 
-  socket.on("group:messages:send", async (content: string) => {
-    if (!group) return;
+  socket.on(
+    "group:messages:send",
+    async (content: string, attachmentIds: string[]) => {
+      if (!group) return;
 
-    const message = await prisma.groupMessage.create({
-      data: {
-        group: { connect: { id: group.id } },
-        content,
-        sender: { connect: { id: user.id } },
-      },
-      include: {
-        sender: { omit: { password: true, token: true, email: true } },
-        attachments: true,
-        group: true,
-      },
-    });
+      const message = await prisma.groupMessage.create({
+        data: {
+          group: { connect: { id: group.id } },
+          content: content || "",
+          sender: { connect: { id: user.id } },
+          attachments: { connect: attachmentIds.map((id) => ({ id })) },
+        },
+        include: {
+          sender: { omit: { password: true, token: true, email: true } },
+          attachments: true,
+          group: true,
+        },
+      });
 
-    io.sockets.in(`group:${group.id}`).emit(`group:messages:send`, message);
-  });
+      io.sockets.in(`group:${group.id}`).emit(`group:messages:send`, message);
+    },
+  );
 
   socket.on("group:messages:delete", async (messageId: string) => {
     const message = await prisma.groupMessage.findFirst({

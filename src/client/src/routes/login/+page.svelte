@@ -66,16 +66,14 @@
       />
 
       {#if error}
-        <p>{error}</p>
+        <p class="alert alert-error">{error}</p>
       {/if}
 
       {#if success}
-        <p>{success}</p>
+        <p class="alert alert-success">{success}</p>
       {/if}
 
-      {#if !error && !success}
-        <p>Don't have an account? <a href="/register">Register</a></p>
-      {/if}
+      <p>Don't have an account? <a href="/register">Register</a></p>
 
       <div class="justify-end">
         <button class="btn btn-neutral mt-4" onclick={handleLogin}>Login</button

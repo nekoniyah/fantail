@@ -13,7 +13,7 @@ const myMulter = multer({
 });
 
 router.put("/", auth, myMulter.single("avatar"), async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
 
   const avatarData = req.file?.buffer.toString("base64") as string;
 

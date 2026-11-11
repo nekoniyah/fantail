@@ -19,8 +19,7 @@ model User {
   password String
   admin    Boolean @default(false)
 
-  token String
-
+  token    String
   verified Boolean @default(false)
   email    String?
 
@@ -39,8 +38,9 @@ model User {
 
   friendInvitations FriendInvitation[]
 
-  friends  User[] @relation("Friendship")
-  friendOf User[] @relation("Friendship")
+  friends         User[]           @relation("Friendship")
+  friendOf        User[]           @relation("Friendship")
+  trustedSessions TrustedSession[]
 }
 
 model Media {
@@ -108,4 +108,15 @@ model FriendInvitation {
   senderId String
 
   targetId String
+}
+
+model TrustedSession {
+  id String @id @default(cuid(2))
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  identity  String
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
 }

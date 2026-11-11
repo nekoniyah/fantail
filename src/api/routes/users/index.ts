@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "@lib/prisma";
 import auth from "@middlewares/auth";
+import type { User } from "@prisma";
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.get("/:id", async (req, res, next) => {
 
   if (id === "@me") {
     await auth(req, res, next);
-    res.json(req.user);
+    res.json((req as any).user as User);
     return;
   }
 

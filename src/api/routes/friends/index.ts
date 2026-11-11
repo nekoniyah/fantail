@@ -6,7 +6,7 @@ import prisma from "@lib/prisma.ts";
 const router = Router();
 
 router.get("/", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
 
   const userWithFriends = await prisma.user.findFirst({
     where: { id: user.id },
@@ -24,7 +24,7 @@ router.get("/", auth, async (req, res) => {
 // Remove friend from friend list
 
 router.delete("/:id", auth, async (req, res) => {
-  const user = req.user as User;
+  const user = (req as any).user as User;
   const friendId = req.params.id as string;
 
   const userWithFriends = await prisma.user.findFirst({

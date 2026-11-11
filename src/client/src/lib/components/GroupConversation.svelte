@@ -1,5 +1,6 @@
 <script lang="ts">
   import { API_ROOT } from "#lib";
+  import { uploadAttachment } from "#lib/api.ts";
   import getSocket from "#lib/io.ts";
   import { token, user } from "#lib/stores.ts";
   import type { GroupMessage } from "#lib/types.ts";
@@ -36,17 +37,18 @@
     }
   });
 
+  let uploadedFileIds = $state<string[]>([]);
+
   async function sendMessage(event: SubmitEvent) {
     event.preventDefault();
     const formData = new FormData(event.target as HTMLFormElement);
     const content = formData.get("content") as string;
 
-    if (!content.trim()) return;
-
     const socket = getSocket();
-    socket.emit("group:messages:send", content);
+    socket.emit("group:messages:send", content, uploadedFileIds);
 
     (event.target as HTMLFormElement).reset();
+    uploadedFileIds = [];
   }
 
   function generateContextMenuForMessage(message: GroupMessage) {
@@ -83,10 +85,45 @@
   function onSelectItemForMessage(item: any) {
     item.action();
   }
+
+  function openAttachmentDialog() {
+    const fileInput = document.querySelector("#file") as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  }
+
+  async function handleFileChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const files = target.files;
+
+    if (!files) return;
+
+    for (let file of files) {
+      const r = await uploadAttachment(file);
+
+      if ("media" in r) {
+        uploadedFileIds = [...uploadedFileIds, r.media.id];
+      }
+    }
+  }
 </script>
 
 {#if valid}
-  <div class="messages absolute bottom-30 left-20 w-full">
+  <input
+    type="file"
+    name="file"
+    id="file"
+    style="display: none;"
+    onchange={handleFileChange}
+    min="1"
+    max="20"
+    maxlength="20"
+  />
+
+  <div
+    class="messages bottom-30 w-full h-[calc(100vh-120px-60px-60px)] overflow-y-scroll absolute"
+  >
     {#key messages.length}
       {#each messages as message (message.id)}
         <ContextMenu
@@ -97,7 +134,7 @@
             <div class="chat-image avatar">
               <div class="w-10 rounded-full">
                 <img
-                  alt="Tailwind CSS chat bubble component"
+                  alt=""
                   src={message.sender.avatarUrl
                     ? `${API_ROOT}${message.sender.avatarUrl}`
                     : "/default-avatar.png"}
@@ -113,22 +150,60 @@
             </div>
           </div>
         </ContextMenu>
+
+        {#if message.attachments.length > 0}
+          <div class="attachments flex relative left-[3vw] w-fit">
+            {#each message.attachments as attachment (attachment.id)}
+              <img
+                src={`${API_ROOT}/files/${attachment.id}`}
+                alt="Attachment"
+                class="w-100 object-contain"
+              />
+            {/each}
+          </div>
+        {/if}
       {/each}
     {/key}
   </div>
 
-  <form
-    onsubmit={sendMessage}
-    class="flex items-center justify-start absolute bottom-0 w-full p-4 bg-gray-100"
+  <div
+    class="flex flex-col items-center justify-start absolute bottom-0 w-full p-4 bg-gray-100"
   >
-    <input
-      type="text"
-      name="content"
-      placeholder="Type your message..."
-      class="input input-bordered w-[80%] mr-2"
-    />
-    <button type="submit" class="btn btn-primary">Send</button>
-  </form>
+    <div
+      class="file-previews flex flex-row items-center justify-start w-full overflow-x-auto"
+    >
+      {#each uploadedFileIds as fileId (fileId)}
+        <div class="file-preview">
+          <img
+            src={`${API_ROOT}/files/${fileId}`}
+            alt="Uploaded file preview"
+            class="w-20 h-20 object-cover"
+          />
+        </div>
+      {/each}
+    </div>
+
+    <form
+      onsubmit={sendMessage}
+      class="flex items-center justify-start w-full p-4 bg-gray-100"
+    >
+      <!-- svelte-ignore a11y_consider_explicit_label -->
+      <button
+        type="button"
+        class="btn btn-ghost mr-2"
+        onclick={openAttachmentDialog}
+      >
+        +
+      </button>
+      <input
+        type="text"
+        name="content"
+        placeholder="Type your message..."
+        class="input input-bordered w-[80%] mr-2"
+      />
+      <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+  </div>
 {/if}
 
 {#if !valid}

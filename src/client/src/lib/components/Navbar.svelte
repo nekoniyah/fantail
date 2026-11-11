@@ -4,22 +4,13 @@
   import {
     friends,
     invitations,
-    sentInvitations,
     token,
     user,
     notifications,
   } from "#lib/stores.ts";
 
-  import {
-    createFriendRequest,
-    fetchFilteredUsers,
-    fetchFriends,
-    fetchMe,
-    fetchNotifications,
-    fetchSentInvitations,
-  } from "#lib/api.ts";
-
-  let searchFieldValue = $state<string>();
+  import { fetchFriends, fetchMe, fetchNotifications } from "#lib/api.ts";
+  import UserSearch from "./UserSearch.svelte";
 
   // Re-check on every navigation, since login/logout change localStorage then navigate.
   $effect(() => {
@@ -39,78 +30,15 @@
       notifications.set(await fetchNotifications());
     })();
   });
-
-  async function addFriend(userId: string) {
-    await createFriendRequest(userId);
-    sentInvitations.set(await fetchSentInvitations());
-  }
 </script>
 
-<div class="navbar bg-base-100 h-30 shadow-sm fixed">
+<div class="navbar bg-base-100 h-30 shadow-sm fixed z-100">
   <div class="navbar-start h-full">
     <a class="btn btn-ghost text-xl" href="/">Fantail</a>
   </div>
   <div class="navbar-end gap-2 h-full">
-    <input
-      type="text"
-      placeholder="Search"
-      class="input w-100"
-      bind:value={searchFieldValue}
-    />
+    <UserSearch />
 
-    {#if searchFieldValue}
-      <ul
-        class="list bg-base-100 rounded-box shadow-md absolute w-100 top-20 right-20"
-      >
-        <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Users</li>
-
-        {#await fetchFilteredUsers(searchFieldValue) then users}
-          {#each users as user}
-            <li class="list-row">
-              <div>
-                <img
-                  class="size-10 rounded-box"
-                  alt="Tailwind CSS list item"
-                  src={user.avatarUrl
-                    ? `${API_ROOT}${user.avatarUrl}`
-                    : "/default-avatar.png"}
-                />
-              </div>
-              <div>
-                <div>{user.username}</div>
-                <div class="text-xs uppercase font-semibold opacity-60">
-                  {user.description || "No description"}
-                </div>
-              </div>
-              {#if $sentInvitations && $sentInvitations.find((i) => i.targetId === user.id)}
-                <button
-                  class="btn btn-square btn-ghost w-full px-2 disabled"
-                  disabled
-                >
-                  Pending
-                </button>
-              {:else}
-                {#if $friends && $friends.find((f) => f.id === user.id)}
-                  <button
-                    class="btn btn-square btn-ghost w-full px-2 disabled"
-                    disabled
-                  >
-                    Friends
-                  </button>
-                {:else}
-                  <button
-                    class="btn btn-square btn-ghost w-full px-2"
-                    onclick={() => addFriend(user.id)}
-                  >
-                    Add
-                  </button>
-                {/if}
-              {/if}
-            </li>
-          {/each}
-        {/await}
-      </ul>
-    {/if}
     <div class="dropdown dropdown-end">
       <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
         <div class="w-20 rounded-full">
@@ -121,7 +49,7 @@
               : "/default-avatar.png"}
           />
         </div>
-        {#if $notifications}
+        {#if $notifications && $notifications.length}
           <div
             class="badge badge-error absolute flex items-center top-7 right-7"
           >
@@ -141,7 +69,7 @@
           <li>
             <a href="/invitations"
               >Friend Invitations
-              {#if $notifications && $invitations && $notifications.length && $invitations.length}
+              {#if $invitations && $invitations.length}
                 <span class="badge">{$invitations.length}</span>
               {/if}
             </a>
