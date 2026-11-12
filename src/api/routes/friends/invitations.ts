@@ -102,20 +102,27 @@ router.delete("/:id", auth, async (req, res) => {
   if (!myInvitation)
     return res.status(404).json({ message: "Invitation not found" });
 
-  if (myInvitation.targetId !== user.id || myInvitation.senderId !== user.id)
-    return res
+  console.log(myInvitation.targetId, myInvitation.senderId, user.id);
+
+  let validated = false;
+
+  if (myInvitation.targetId === user.id) validated = true;
+  if (myInvitation.senderId === user.id) validated = true;
+
+  if (validated) {
+    await prisma.friendInvitation.delete({
+      where: {
+        id,
+      },
+    });
+
+    res.status(200).json({
+      message: "Invitation deleted",
+    });
+  } else
+    res
       .status(403)
       .json({ message: "You are not the target or sender of this invitation" });
-
-  await prisma.friendInvitation.delete({
-    where: {
-      id,
-    },
-  });
-
-  res.status(200).json({
-    message: "Invitation deleted",
-  });
 });
 
 // Accept a friend request

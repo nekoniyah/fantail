@@ -1,18 +1,14 @@
 <script lang="ts">
   import { API_ROOT } from "#lib";
-  import {
-    createFriendRequest,
-    fetchFilteredUsers,
-    fetchSentInvitations,
-  } from "#lib/api.ts";
+  import { fetchFilteredUsers } from "#lib/api.ts";
   import { friends, sentInvitations, user as me } from "#lib/stores.ts";
   import { Button } from "#lib/components/index.ts";
+  import ProfileChip from "./ProfileChip.svelte";
 
   let searchFieldValue = $state("");
   // Debounced copy of the search text, so we don't fire a request per keystroke
   let query = $state("");
   let open = $state(false);
-  let addingId = $state<string>();
 
   $effect(() => {
     const value = searchFieldValue.trim();
@@ -25,16 +21,6 @@
     const timeout = setTimeout(() => (query = value), 250);
     return () => clearTimeout(timeout);
   });
-
-  async function addFriend(userId: string) {
-    addingId = userId;
-    try {
-      await createFriendRequest(userId);
-      sentInvitations.set(await fetchSentInvitations());
-    } finally {
-      addingId = undefined;
-    }
-  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -98,45 +84,7 @@
       {:then users}
         {@const results = users.filter((u) => u.id !== $me?.id)}
         {#each results as user (user.id)}
-          <li class="list-row items-center">
-            <img
-              class="size-10 rounded-box border-2 border-neutral object-cover"
-              alt=""
-              src={user.avatarUrl
-                ? `${API_ROOT}${user.avatarUrl}`
-                : "/default-avatar.png"}
-            />
-
-            <div class="list-col-grow min-w-0">
-              <div class="flex items-baseline gap-1">
-                <span class="truncate font-bold"
-                  >{user.displayName || user.username}</span
-                >
-                {#if user.displayName}
-                  <span class="truncate text-xs text-base-content/60"
-                    >@{user.username}</span
-                  >
-                {/if}
-              </div>
-              <div class="truncate text-xs font-semibold text-base-content/60">
-                {user.description || "No description"}
-              </div>
-            </div>
-
-            {#if $sentInvitations?.find((i) => i.targetId === user.id)}
-              <Button size="sm" variant="outline" disabled>Pending</Button>
-            {:else if $friends?.find((f) => f.id === user.id)}
-              <Button size="sm" variant="ghost" disabled>Friends</Button>
-            {:else}
-              <Button
-                size="sm"
-                loading={addingId === user.id}
-                onclick={() => addFriend(user.id)}
-              >
-                Add
-              </Button>
-            {/if}
-          </li>
+          <ProfileChip target={user}></ProfileChip>
         {:else}
           <li class="p-4 text-center text-base-content/70">
             No users found for “{query}”.

@@ -135,6 +135,7 @@ export async function markNotificationAsRead(id: string) {
   });
 }
 
+// Plaintext upload: for emotes, stickers and other shared library items.
 export async function uploadAttachment(file: File) {
   const formData = new FormData();
   formData.append("file", file);
@@ -148,4 +149,33 @@ export async function uploadAttachment(file: File) {
   if (res.ok) {
     return (await res.json()) as { path: string; media: any };
   } else return (await res.json()) as { message: string; media?: any };
+}
+
+// Encrypted upload: `upload` is what encryptAttachment() returns. Sent as
+// multipart (raw ciphertext + nonce); the server stores it as an opaque Media
+// row (type "attachment"). Throws on network errors, like fetch.
+export async function uploadEncryptedAttachment(upload: {
+  data: Uint8Array; // ciphertext
+  nonce: string; // base64
+}) {
+  const formData = new FormData();
+  formData.append("nonce", upload.nonce);
+  formData.append(
+    "file",
+    new Blob([upload.data as BlobPart], { type: "application/octet-stream" }),
+    "attachment.bin",
+  );
+
+  const res = await fetch(`${API_ROOT}/files/attachments`, {
+    method: "POST",
+    body: formData,
+    headers: headers(),
+  });
+
+  if (res.ok) {
+    return (await res.json()) as { path: string; media: { id: string } };
+  }
+  return (await res.json().catch(() => ({ message: "Upload failed" }))) as {
+    message: string;
+  };
 }

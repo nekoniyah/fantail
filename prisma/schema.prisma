@@ -41,15 +41,36 @@ model User {
   friendOf        User[]           @relation("Friendship")
   trustedSessions TrustedSession[]
   sessions        Session[]
+
+  publicKey        String? // base64 X25519 public key (nullable until each user has generated one)
+  signingPublicKey String? // base64 Ed25519 public key (for sender authenticity)
+
+  groupKeyEnvelopes GroupKeyEnvelope[]
+}
+
+// The group key, sealed to one member's public key, one row per (group, user, version)
+model GroupKeyEnvelope {
+  id         String @id @default(cuid(2))
+  group      Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId    String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  version    Int
+  wrappedKey String // base64 crypto_box_seal output
+
+  @@unique([groupId, userId, version])
+  @@index([userId, groupId])
 }
 
 model Media {
   id             String        @id @default(cuid(2))
-  type           String
-  data           String
-  format         String
+  type           String // "emote" | "sticker" | "attachment"
+  data           String // plaintext for emote/sticker, base64 ciphertext for attachment
+  format         String // real format for emote/sticker, constant "bin" for attachment
+  nonce          String? // only set for "attachment"
+  uploaderId     String? // lets you check ownership when attaching
   groupMessage   GroupMessage? @relation(fields: [groupMessageId], references: [id])
-  groupMessageId String?
+  groupMessageId String? // only used for "attachment"
 }
 
 model Avatar {
@@ -82,6 +103,10 @@ model Group {
   name    String?
 
   messages GroupMessage[]
+
+  keyVersion Int @default(0) // 0 = no key yet
+
+  envelopes GroupKeyEnvelope[]
 }
 
 model GroupMessage {
@@ -93,12 +118,15 @@ model GroupMessage {
   sender   User   @relation(fields: [senderId], references: [id])
   senderId String
 
-  content String
-
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
   attachments Media[]
+
+  content    String // base64 ciphertext (never plaintext)
+  nonce      String
+  keyVersion Int
+  signature  String? // Ed25519 signature over (groupId, senderId, keyVersion, nonce, content)
 }
 
 model FriendInvitation {
