@@ -3,6 +3,8 @@ import { Router } from "express";
 import multer from "multer";
 import prisma from "@lib/prisma";
 import auth from "@middlewares/auth";
+import { sendError, sendData } from "@lib/responses";
+import { cached, MEDIA_TTL_MS, cache } from "@lib/cache";
 
 const MAX_UPLOAD_SIZE = Number(process.env.MAX_UPLOAD_SIZE) * 1024 * 1024;
 
@@ -41,16 +43,16 @@ const router = Router();
 router.get("/:id", async (req, res) => {
   const id = req.params.id;
 
-  const media = await prisma.media.findUnique({
-    where: {
-      id,
-    },
-  });
+  const media = await cached(`media:${id}`, MEDIA_TTL_MS, () =>
+    prisma.media.findUnique({
+      where: {
+        id,
+      },
+    }),
+  );
 
   if (!media)
-    return res.status(404).json({
-      message: "Media not found",
-    });
+    return sendError(res, 404, "Media not found");
 
   const buffer = Buffer.from(media.data, "base64");
 
@@ -85,9 +87,7 @@ router.post("/", auth, myMulter.single("file"), async (req, res) => {
   if (req.file) {
     // "attachment" is reserved for encrypted uploads (see /attachments)
     if (req.file.mimetype === "attachment")
-      return res.status(400).json({
-        message: "Invalid file type",
-      });
+      return sendError(res, 400, "Invalid file type");
 
     const data = req.file.buffer.toString("base64");
 
@@ -101,10 +101,7 @@ router.post("/", auth, myMulter.single("file"), async (req, res) => {
     });
 
     if (existingMedia)
-      return res.status(400).json({
-        media: existingMedia,
-        message: "Duplicate file",
-      });
+      return sendError(res, 400, "Duplicate file");
 
     const extension = (req.file.originalname.split(".").pop() || "")
       .replace(/[^a-z0-9]/gi, "")
@@ -118,7 +115,7 @@ router.post("/", auth, myMulter.single("file"), async (req, res) => {
       },
     });
 
-    res.status(201).json({
+    sendData(res, 201, {
       media,
       path: `/api/files/${media.id}`,
     });
@@ -126,11 +123,8 @@ router.post("/", auth, myMulter.single("file"), async (req, res) => {
     return;
   }
 
-  res.status(400).json({
-    message: "No file uploaded",
-  });
+  sendError(res, 400, "No file uploaded");
 });
-
 // Encrypted upload for group messages, as multipart: `file` = raw ciphertext,
 // `nonce` = base64. The server never sees the key, the filename or the MIME type.
 // Multipart sidesteps any JSON body limit (e.g. a global express.json()).
@@ -141,15 +135,13 @@ router.post(
     uploadOneAttachment(req, res, (err) => {
       if (!err) return next();
       const tooLarge = (err as { code?: string }).code === "LIMIT_FILE_SIZE";
-      res.status(tooLarge ? 413 : 400).json({
-        message: tooLarge ? "File too large" : "Invalid upload",
-      });
+      return sendError(res, tooLarge ? 413 : 400, tooLarge ? "File too large" : "Invalid upload");
     });
   },
   async (req, res) => {
     // Adjust if your auth middleware stores the user somewhere else
     const userId: string | undefined = (req as any).user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!userId) return sendError(res, 401, "Unauthorized");
 
     const nonce = req.body?.nonce;
 
@@ -159,7 +151,7 @@ router.post(
       !isBase64(nonce) ||
       nonce.length !== NONCE_B64_LEN
     ) {
-      return res.status(400).json({ message: "Invalid attachment" });
+      return sendError(res, 400, "Invalid attachment");
     }
 
     // No duplicate check: each file gets a fresh key and nonce, so ciphertexts never repeat.
@@ -174,7 +166,7 @@ router.post(
       select: { id: true }, // don't echo megabytes back
     });
 
-    res.status(201).json({
+    sendData(res, 201, {
       media,
       path: `/api/files/${media.id}`,
     });

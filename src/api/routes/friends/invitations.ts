@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "@middlewares/auth.ts";
 import type { User } from "@prisma";
 import prisma from "@lib/prisma.ts";
+import { sendError, sendData, sendMessage } from "@lib/responses";
 
 const router = Router();
 
@@ -14,7 +15,7 @@ router.get("/sent", auth, async (req, res) => {
     },
   });
 
-  res.json(invitations);
+  sendData(res, 200, invitations);
 });
 
 router.get("/", auth, async (req, res) => {
@@ -26,7 +27,7 @@ router.get("/", auth, async (req, res) => {
     },
   });
 
-  res.json(invitations);
+  sendData(res, 200, invitations);
 });
 
 router.post("/", auth, async (req, res) => {
@@ -35,9 +36,11 @@ router.post("/", auth, async (req, res) => {
   const targetId = req.body.targetId as string;
 
   if (user.id === targetId)
-    return res
-      .status(400)
-      .json({ message: "You cannot send a friend request to yourself" });
+    return sendError(
+      res,
+      400,
+      "You cannot send a friend request to yourself",
+    );
 
   const targetUser = await prisma.user.findUnique({
     where: {
@@ -45,7 +48,7 @@ router.post("/", auth, async (req, res) => {
     },
   });
 
-  if (!targetUser) return res.status(404).json({ message: "User not found" });
+  if (!targetUser) return sendError(res, 404, "User not found");
 
   const isAlreadyFriends = await prisma.user.findFirst({
     where: {
@@ -59,9 +62,7 @@ router.post("/", auth, async (req, res) => {
   });
 
   if (isAlreadyFriends)
-    return res
-      .status(400)
-      .json({ message: "You are already friends with this user" });
+    return sendError(res, 400, "You are already friends with this user");
 
   const existingInvitation = await prisma.friendInvitation.findFirst({
     where: {
@@ -71,9 +72,11 @@ router.post("/", auth, async (req, res) => {
   });
 
   if (existingInvitation)
-    return res
-      .status(400)
-      .json({ message: "You already sent a friend request to this user" });
+    return sendError(
+      res,
+      400,
+      "You already sent a friend request to this user",
+    );
 
   await prisma.friendInvitation.create({
     data: {
@@ -82,9 +85,7 @@ router.post("/", auth, async (req, res) => {
     },
   });
 
-  res.status(200).json({
-    message: "Friend request sent",
-  });
+  sendMessage(res, 201, "Friend request sent");
 });
 
 // Cancel or deny a friend request
@@ -100,7 +101,7 @@ router.delete("/:id", auth, async (req, res) => {
   });
 
   if (!myInvitation)
-    return res.status(404).json({ message: "Invitation not found" });
+    return sendError(res, 404, "Invitation not found");
 
   console.log(myInvitation.targetId, myInvitation.senderId, user.id);
 
@@ -116,13 +117,13 @@ router.delete("/:id", auth, async (req, res) => {
       },
     });
 
-    res.status(200).json({
-      message: "Invitation deleted",
-    });
+    sendMessage(res, 200, "Invitation deleted");
   } else
-    res
-      .status(403)
-      .json({ message: "You are not the target or sender of this invitation" });
+    sendError(
+      res,
+      403,
+      "You are not the target or sender of this invitation",
+    );
 });
 
 // Accept a friend request
@@ -135,12 +136,10 @@ router.post("/:id", auth, async (req, res) => {
   });
 
   if (!invitation)
-    return res.status(404).json({ message: "Invitation not found" });
+    return sendError(res, 404, "Invitation not found");
 
   if (invitation.targetId !== user.id)
-    return res
-      .status(403)
-      .json({ message: "You are not the target of this invitation" });
+    return sendError(res, 403, "You are not the target of this invitation");
 
   // Delete the invitation and add friend to friend list
 
@@ -163,7 +162,7 @@ router.post("/:id", auth, async (req, res) => {
     },
   });
 
-  return res.status(200).json();
+  return sendMessage(res, 200, "Invitation accepted");
 });
 
 export default router;

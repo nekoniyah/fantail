@@ -4,6 +4,7 @@ import prisma from "@lib/prisma";
 import auth from "@middlewares/auth.ts";
 import type { User } from "@prisma";
 import z from "zod";
+import { sendError, sendMessage } from "@lib/responses";
 
 const router = Router();
 const passwordSalt = Number(process.env.PASSWORD_SALT);
@@ -34,20 +35,18 @@ router.put("/", auth, async (req, res) => {
   const { data, success, error } = await updateSelfSchema.safeParseAsync(body);
 
   if (!success)
-    return res.status(400).json({
-      message: error.message,
-    });
+    return sendError(res, 400, error.message);
 
   let newPassword: string | undefined;
 
   if (data.password) {
     if (!data.oldPassword)
-      return res.status(400).json({ message: "Old password is required" });
+      return sendError(res, 400, "Old password is required");
 
     // Check if old password is correct (match self.password)
 
     if (!compareSync(data.oldPassword, self.password))
-      return res.status(400).json({ message: "Old password is incorrect" });
+      return sendError(res, 400, "Old password is incorrect");
 
     newPassword = hashSync(data.password, passwordSalt);
   }
@@ -62,7 +61,7 @@ router.put("/", auth, async (req, res) => {
     },
   });
 
-  res.json({ message: "Profile updated" });
+  sendMessage(res, 200, "Profile updated");
 });
 
 export default router;

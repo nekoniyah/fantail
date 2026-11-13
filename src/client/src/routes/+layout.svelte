@@ -6,6 +6,25 @@
   import GroupSelector from "#lib/components/GroupSelector.svelte";
 
   let { children }: LayoutProps = $props();
+
+  // Warm the app on startup: user + groups land while the user is on any page,
+  // so navigating into a group chat starts with data already in memory.
+  import { onMount } from "svelte";
+  import { get } from "svelte/store";
+  import { token as tokenStore, user as userStore } from "#lib/stores.ts";
+  import { fetchMe } from "#lib/api.ts";
+  import { prefetchGroups } from "#lib/groupCache.ts";
+
+  onMount(() => {
+    (async () => {
+      if (!get(tokenStore)) return;
+      if (!get(userStore)) {
+        const me = await fetchMe();
+        if (me) userStore.set(me);
+      }
+      await prefetchGroups();
+    })();
+  });
 </script>
 
 <svelte:head>

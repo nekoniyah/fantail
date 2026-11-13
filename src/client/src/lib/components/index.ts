@@ -6,3 +6,5 @@ export { default as Card } from "./Card.svelte";
 export { default as Textarea } from "./Textarea.svelte";
 export { default as Tabs } from "./Tabs.svelte";
 export { default as EmptyState } from "./EmptyState.svelte";
+export { default as MediaLibraryPanel } from "./MediaLibraryPanel.svelte";
+export { default as EmojiStickerPicker } from "./EmojiStickerPicker.svelte";

@@ -43,3 +43,11 @@ We **won't** use AI tools to moderate autonomously. We can at least use tools to
 Like the schema below, community servers are real hosted servers that you can host yourself. However, the core features of Fantail (authentication, friends, group messages, user stickers, user emojis, etc.) reside in centralized backend (sadly). It works like Minecraft, with their client connecting to authentication servers and external playing servers.
 
 ![schema](./docs/schema.png)
+
+## AI-Usage in the Making of Fantail
+
+This is really sad for me. As a fervent ally of anti AI gen people, I feel the need to use it for the sole purpose of developing it.
+Notes:
+
+- I will NEVER use AI generate images, songs or other medias except code for Fantail.
+- I will NEVER implement AI features in Fantail, it's not the goal AI.

@@ -1,12 +1,13 @@
 <script lang="ts">
   import { friends, user } from "#lib/stores.ts";
   import type { Group, PublicUser } from "#lib/types.ts";
-  import { createGroup, deleteGroup, fetchGroups } from "#lib/api.ts";
+  import { createGroup, deleteGroup } from "#lib/api.ts";
   import { API_ROOT } from "#lib";
   import ContextMenu from "#lib/components/ContextMenu.svelte";
   import { Button, EmptyState, Input } from "#lib/components/index.ts";
+  import { groups as groupsStore, refreshGroups } from "#lib/groupCache.ts";
 
-  let fetchedGroups = $state<Group[] | null>(null);
+  
 
   let dialog = $state<HTMLDialogElement>();
   let selectedFriends = $state<PublicUser[]>([]);
@@ -30,13 +31,10 @@
     );
   });
 
+  // The root layout prefetches groups on startup; re-fetch only on explicit
+  // list-changing actions (create/delete), never on every navigation.
   $effect(() => {
-    window.location.pathname;
-    (async () => {
-      if ($user) fetchedGroups = await fetchGroups();
-    })();
-
-    $inspect("fetched groups", fetchedGroups);
+    if ($user && $groupsStore === null) void refreshGroups();
   });
 
   function openModal() {
@@ -65,7 +63,7 @@
       const res = await createGroup(selectedFriends.map((friend) => friend.id));
 
       if (res.ok) {
-        fetchedGroups = await fetchGroups();
+        await refreshGroups();
         closeModal();
       } else {
         error = "Could not create the group. Please try again.";
@@ -92,7 +90,7 @@
         label: "Delete",
         action: async () => {
           await deleteGroup(group.id);
-          fetchedGroups = await fetchGroups();
+          await refreshGroups();
         },
       },
     ];
@@ -126,8 +124,8 @@
       +
     </Button>
 
-    {#if fetchedGroups && fetchedGroups.length}
-      {#each fetchedGroups as group (group.id)}
+    {#if $groupsStore && $groupsStore.length}
+      {#each $groupsStore as group (group.id)}
         <ContextMenu
           items={generateContextMenuForGroup(group)}
           onselect={(item) => onSelectItemForGroup(item)}

@@ -2,6 +2,7 @@ import type { Socket } from "socket.io";
 import type { User } from "@prisma";
 import prisma from "@lib/prisma";
 import { Server } from "socket.io";
+import { cache } from "@lib/cache";
 
 // Sizes of base64-encoded tweetnacl values
 const NONCE_LEN = 32; // 24 bytes
@@ -355,6 +356,11 @@ export async function listenWebsocketGroupEvents(
     });
     if (!message) return;
 
+    const deletedMedia = await prisma.media.findMany({
+      where: { groupMessageId: message.id, type: "attachment" },
+      select: { id: true },
+    });
+
     await prisma.$transaction([
       // Encrypted attachments die with their message
       prisma.media.deleteMany({
@@ -362,6 +368,8 @@ export async function listenWebsocketGroupEvents(
       }),
       prisma.groupMessage.delete({ where: { id: message.id } }),
     ]);
+
+    for (const media of deletedMedia) cache.del(`media:${media.id}`);
 
     io.to(room(g.id)).emit("group:messages:delete", messageId);
   });

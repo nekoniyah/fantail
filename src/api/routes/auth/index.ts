@@ -4,6 +4,7 @@ import { compareSync, hashSync } from "bcrypt";
 
 import * as Iron from "iron-webcrypto";
 import { z } from "zod";
+import { sendError, sendMessage, sendData } from "@lib/responses";
 
 const router = Router();
 
@@ -35,18 +36,14 @@ const registerSchema = z.object({
 
 router.post("/login", async (req, res) => {
   if (!req.body) {
-    res.status(400).json({
-      message: "Request body is empty",
-    });
+    sendError(res, 400, "Request body is empty");
     return;
   }
 
   const { data, success, error } = await loginSchema.safeParseAsync(req.body);
 
   if (!success)
-    return res.status(400).json({
-      message: error.message,
-    });
+    return sendError(res, 400, error.message);
 
   const { emailOrUsername, password } = data;
 
@@ -57,22 +54,20 @@ router.post("/login", async (req, res) => {
   });
 
   if (!account)
-    return res.status(404).json({
-      message: "Account with email or username does not exist",
-    });
+    return sendError(
+      res,
+      404,
+      "Account with email or username does not exist",
+    );
 
   if (!compareSync(password, account.password))
-    return res.status(401).json({
-      message: "Invalid password",
-    });
+    return sendError(res, 401, "Invalid password");
 
   const key = req.cookies["fantail_private_key"] as string;
   const expirationMs = req.cookies["fantail_expiration"] as string;
 
   if (!key || !expirationMs)
-    return res.status(400).json({
-      message: "Missing key or expiration",
-    });
+    return sendError(res, 400, "Missing key or expiration");
 
   const expiration = new Date(Date.now() + Number(expirationMs));
 
@@ -93,7 +88,7 @@ router.post("/login", async (req, res) => {
     },
   });
 
-  res.status(200).json({
+  sendData(res, 200, {
     message: "Successfully logged in",
     session,
   });
@@ -101,16 +96,12 @@ router.post("/login", async (req, res) => {
 
 router.post("/register", async (req, res) => {
   if (!req.body)
-    return res.status(400).json({
-      message: "Request body is empty",
-    });
+    return sendError(res, 400, "Request body is empty");
 
   const { data, success, error } = registerSchema.safeParse(req.body);
 
   if (!success)
-    return res.status(400).json({
-      message: (error.issues[0] as any).message,
-    });
+    return sendError(res, 400, (error.issues[0] as any).message);
 
   const { email, password, username } = data;
 
@@ -120,9 +111,7 @@ router.post("/register", async (req, res) => {
     account = await prisma.user.findFirst({ where: { email } });
 
   if (account)
-    return res.status(404).json({
-      message: "Account with email or username already exists",
-    });
+    return sendError(res, 409, "Account with email or username already exists");
 
   const hashedPassword = hashSync(password, passwordSalt);
 
@@ -136,9 +125,7 @@ router.post("/register", async (req, res) => {
 
   res.locals.user = account;
 
-  res.status(200).json({
-    message: "Successfully created account.",
-  });
+  sendMessage(res, 201, "Successfully created account.");
 });
 
 export default router;

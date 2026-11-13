@@ -37,3 +37,14 @@ export type GroupMessage = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+/** A media-library entry as returned by the API (no `data` bytes). */
+export type MediaItem = {
+  id: string;
+  type: "emote" | "sticker";
+  format: string;
+  name: string;
+};
+
+/** What a library item looks like on disk, for the picker. */
+export type LibraryKind = MediaItem["type"];

@@ -4,6 +4,7 @@ import auth from "@middlewares/auth";
 import type { User } from "@prisma";
 
 import * as Iron from "iron-webcrypto";
+import { sendError, sendMessage } from "@lib/responses";
 
 const router = Router();
 
@@ -31,6 +32,8 @@ router.post("/", auth, async (req, res) => {
       identity: identity,
     },
   });
+
+  sendMessage(res, 201, "Trusted session created");
 });
 
 /** For the Fantail instance,
@@ -42,10 +45,7 @@ router.post("/verify", async (req, res) => {
   const userId = req.body.userId;
 
   if (!identity || !userId)
-    return res.status(400).json({
-      success: false,
-      message: "Missing identity or userId",
-    });
+    return sendError(res, 400, "Missing identity or userId");
 
   const account = await prisma.user.findUnique({
     where: {
@@ -54,10 +54,7 @@ router.post("/verify", async (req, res) => {
   });
 
   if (!account)
-    return res.status(404).json({
-      success: false,
-      message: "Account not found",
-    });
+    return sendError(res, 404, "Account not found");
 
   const sessions = await prisma.trustedSession.findMany({
     where: {
@@ -68,24 +65,15 @@ router.post("/verify", async (req, res) => {
   });
 
   if (sessions.length === 0)
-    return res.status(404).json({
-      success: false,
-      message: "No trusted sessions found for this identity",
-    });
+    return sendError(res, 404, "No trusted sessions found for this identity");
 
   const latestSession = sessions[0]!;
 
   if (latestSession.used)
-    return res.status(400).json({
-      success: false,
-      message: "This identity has already been used",
-    });
+    return sendError(res, 400, "This identity has already been used");
 
   if (latestSession.identity !== identity)
-    return res.status(400).json({
-      success: false,
-      message: "Invalid identity",
-    });
+    return sendError(res, 400, "Invalid identity");
 
   await prisma.trustedSession.update({
     where: {
@@ -96,10 +84,7 @@ router.post("/verify", async (req, res) => {
     },
   });
 
-  res.status(200).json({
-    success: true,
-    message: "Identity verified successfully",
-  });
+  sendMessage(res, 200, "Identity verified successfully");
 });
 
 export default router;

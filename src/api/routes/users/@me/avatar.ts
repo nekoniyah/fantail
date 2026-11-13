@@ -3,6 +3,8 @@ import prisma from "@lib/prisma.ts";
 import multer from "multer";
 import auth from "@middlewares/auth.ts";
 import type { User } from "@prisma";
+import { sendMessage } from "@lib/responses";
+import { invalidateAvatar } from "@lib/cache";
 
 const router = Router();
 
@@ -38,7 +40,9 @@ router.put("/", auth, myMulter.single("avatar"), async (req, res) => {
     },
   });
 
-  res.status(200).json({ message: "Avatar updated successfully" });
+  invalidateAvatar(user.id);
+
+  sendMessage(res, 200, "Avatar updated successfully");
 });
 
 export default router;

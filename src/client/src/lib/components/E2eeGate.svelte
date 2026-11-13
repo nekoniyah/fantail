@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { get } from "svelte/store";
   import getSocket from "#lib/io.ts";
-  import { identity, passphrase, user } from "#lib/stores.ts";
+  import { identity, passphrase, user, token } from "#lib/stores.ts";
   import {
     hasStoredIdentity,
     setupIdentity,
@@ -22,28 +23,34 @@
   let error = $state<string>();
   let busy = $state(false);
 
-  let formUnlock = $state<HTMLFormElement>();
 
   onMount(async () => {
     const lsPassphrase = localStorage.getItem("passphrase");
-    if (lsPassphrase) passphrase.set(lsPassphrase);
 
+    if (lsPassphrase && !get(identity)) {
+      // Auto-unlock straight from localStorage: no gate UI, no waiting for
+      // form bind. Only touches the UI if it fails.
+      run(async () => {
+        await unlockIdentity($user!.id, lsPassphrase);
+        await finish(false);
+      });
+      return;
+    }
+
+    passphrase.set(lsPassphrase ?? "");
     mode = (await hasStoredIdentity($user!.id)) ? "unlock" : "setup";
+  });
 
-    const inter = setInterval(() => {
-      if (formUnlock && lsPassphrase) {
-        clearInterval(inter);
-        run(async () => {
-          await unlockIdentity($user!.id, $passphrase);
-          await finish(false);
-        });
-      }
-    }, 1000);
+  // Logout or account switch: drop the in-memory passphrase of the previous
+  // account so the next login can't reuse (or clobber) it.
+  $effect(() => {
+    if (!$token && $passphrase) passphrase.set("");
   });
 
   $effect(() => {
-    $passphrase;
-    localStorage.setItem("passphrase", $passphrase);
+    // Persist only non-empty passphrases: switchMode() clears the store, and
+    // writing that "" used to clobber the stored passphrase for the next login.
+    if ($passphrase) localStorage.setItem("passphrase", $passphrase);
   });
 
   function switchMode(next: Mode) {
@@ -80,8 +87,7 @@
       switchMode("import");
       error =
         "Your account already has encryption keys from another device. Import the backup from that device.";
-    } else {
-      if (deleteOnFail) await deleteStoredIdentity($user!.id);
+    } else {      if (deleteOnFail) await deleteStoredIdentity($user!.id);
       else lockIdentity();
       error = "Couldn't register your keys with the server. Try again.";
     }
@@ -139,13 +145,17 @@
 </script>
 
 <div class="mx-auto mt-40 flex w-full max-w-md flex-col gap-4 px-4">
+  {#if mode === "loading"}
+    <div class="flex justify-center">
+      <span class="loading loading-spinner"></span>
+    </div>
+  {:else}
   <h2 class="text-2xl font-bold">🔒 Encrypted chats</h2>
 
   {#if mode === "unlock"}
     <p>Enter your passphrase to unlock your messages on this device.</p>
     <form
       onsubmit={submitUnlock}
-      bind:this={formUnlock}
       class="flex flex-col gap-3"
     >
       <Input
@@ -221,5 +231,6 @@
 
   {#if error}
     <p role="alert" class="font-bold text-error">{error}</p>
+  {/if}
   {/if}
 </div>

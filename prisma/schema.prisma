@@ -13,6 +13,14 @@ datasource db {
   provider = "sqlite"
 }
 
+model UserSettings {
+  user       User    @relation(fields: [userId], references: [id])
+  userId     String  @id
+  showGore   Boolean @default(false)
+  showNsfw   Boolean @default(false)
+  showNudity Boolean @default(false)
+}
+
 model User {
   id       String  @id @default(cuid(2))
   username String
@@ -21,6 +29,8 @@ model User {
 
   verified Boolean @default(false)
   email    String?
+
+  age Int?
 
   displayName   String?
   notifications Notification[]
@@ -45,7 +55,11 @@ model User {
   publicKey        String? // base64 X25519 public key (nullable until each user has generated one)
   signingPublicKey String? // base64 Ed25519 public key (for sender authenticity)
 
-  groupKeyEnvelopes GroupKeyEnvelope[]
+  groupKeyEnvelopes     GroupKeyEnvelope[]
+  userSettings          UserSettings?
+  userSettingsUserId    String?            @unique
+
+  media Media[]
 }
 
 // The group key, sealed to one member's public key, one row per (group, user, version)
@@ -69,8 +83,17 @@ model Media {
   format         String // real format for emote/sticker, constant "bin" for attachment
   nonce          String? // only set for "attachment"
   uploaderId     String? // lets you check ownership when attaching
-  groupMessage   GroupMessage? @relation(fields: [groupMessageId], references: [id])
+  // Encrypted attachment ciphertexts die with their message; emote/sticker
+  // rows are standalone library items and never join a message.
+  groupMessage   GroupMessage? @relation(fields: [groupMessageId], references: [id], onDelete: Cascade)
   groupMessageId String? // only used for "attachment"
+  sensitivity    String?
+
+  // User library entries ("emote" / "sticker"): owned and named by their uploader
+  name String?
+  owner User? @relation(fields: [uploaderId], references: [id])
+
+  @@index([uploaderId, type])
 }
 
 model Avatar {
@@ -112,7 +135,7 @@ model Group {
 model GroupMessage {
   id String @id @default(cuid(2))
 
-  group   Group  @relation(fields: [groupId], references: [id])
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   groupId String
 
   sender   User   @relation(fields: [senderId], references: [id])

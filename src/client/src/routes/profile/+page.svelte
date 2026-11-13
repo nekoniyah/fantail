@@ -7,6 +7,7 @@
     Card,
     EmptyState,
     Input,
+    MediaLibraryPanel,
     Tabs,
     Textarea,
   } from "#lib/components/index.ts";
@@ -34,19 +35,9 @@
   // Placeholders for tabs the backend doesn't support yet. Once a tab has real
   // data, replace its entry here with a dedicated panel in the markup.
   const comingSoon: Record<
-    Exclude<TabId, "profile">,
+    Exclude<TabId, "profile" | "emoji" | "stickers">,
     { icon: string; title: string; description: string }
   > = {
-    emoji: {
-      icon: "😀",
-      title: "Custom emoji",
-      description: "Upload your own emoji to use across Fantail.",
-    },
-    stickers: {
-      icon: "🌟",
-      title: "Stickers",
-      description: "Collect and share stickers with your friends.",
-    },
     ocs: {
       icon: "🎨",
       title: "Original characters",
@@ -227,6 +218,18 @@
               {success}
             </div>
           {/if}
+        {:else if tab === "emoji" || tab === "stickers"}
+          <MediaLibraryPanel
+            kind={tab === "emoji" ? "emote" : "sticker"}
+            emptyTitle={tab === "emoji" ? "No emoji yet" : "No stickers yet"}
+            emptyDescription={
+              tab === "emoji"
+                ? "Upload small images (PNG, GIF, WebP, up to 1 MB) to use as emoji in your chats."
+                : "Upload larger images (PNG, GIF, WebP, up to 1 MB) to send as stickers in your chats."
+            }
+            itemActionLabel="Use in a chat"
+            itemActionIcon="💬"
+          />
         {:else}
           {@const info = comingSoon[tab]}
           <EmptyState

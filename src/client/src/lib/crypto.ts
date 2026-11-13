@@ -399,7 +399,14 @@ export function loadEnvelopes(
       cacheGroupKey(groupId, e.version, unwrapKey(e.wrappedKey));
       latest = Math.max(latest, e.version);
     } catch {
-      console.warn(`Could not unwrap envelope v${e.version} for ${groupId}`);
+      // The envelope can't be opened by this device's key pair: the stored
+      // identity doesn't match the account's registered public key. A group
+      // key re-share or an identity re-import is needed; keep loading the rest.
+      console.warn(
+        `Could not unwrap envelope v${e.version} for ${groupId} — ` +
+          `your device keys likely don't match your account's registered keys. ` +
+          `Import your backup (or ask the owner to share the key again).`,
+      );
     }
   }
   return latest;

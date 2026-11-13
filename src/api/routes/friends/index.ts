@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "@middlewares/auth.ts";
 import type { User } from "@prisma";
 import prisma from "@lib/prisma.ts";
+import { sendError, sendData, sendMessage } from "@lib/responses";
 
 const router = Router();
 
@@ -16,9 +17,9 @@ router.get("/", auth, async (req, res) => {
   });
 
   if (!userWithFriends)
-    return res.status(404).json({ message: "User not found" });
+    return sendError(res, 404, "User not found");
 
-  return res.status(200).json(userWithFriends.friends);
+  return sendData(res, 200, userWithFriends.friends);
 });
 
 // Remove friend from friend list
@@ -35,13 +36,13 @@ router.delete("/:id", auth, async (req, res) => {
   });
 
   if (!userWithFriends)
-    return res.status(404).json({ message: "User not found" });
+    return sendError(res, 404, "User not found");
 
   const friend = userWithFriends.friends.find(
     (friend) => friend.id === friendId,
   );
 
-  if (!friend) return res.status(404).json({ message: "Friend not found" });
+  if (!friend) return sendError(res, 404, "Friend not found");
 
   await prisma.user.update({
     where: { id: user.id },
@@ -52,7 +53,7 @@ router.delete("/:id", auth, async (req, res) => {
     },
   });
 
-  return res.status(200).json({ message: "Friend removed" });
+  return sendMessage(res, 200, "Friend removed");
 });
 
 export default router;

@@ -4,6 +4,7 @@
   import { friends, sentInvitations, user as me } from "#lib/stores.ts";
   import { Button } from "#lib/components/index.ts";
   import ProfileChip from "./ProfileChip.svelte";
+  import { onMount } from "svelte";
 
   let searchFieldValue = $state("");
   // Debounced copy of the search text, so we don't fire a request per keystroke

@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "@lib/prisma";
 import auth from "@middlewares/auth";
 import type { User } from "@prisma";
+import { sendError, sendData } from "@lib/responses";
 
 const router = Router();
 
@@ -14,7 +15,7 @@ router.get("/", auth, async (req, res) => {
     },
   });
 
-  res.json(notifications);
+  sendData(res, 200, notifications);
 });
 
 router.post("/:id/read", auth, async (req, res) => {
@@ -28,13 +29,15 @@ router.post("/:id/read", auth, async (req, res) => {
   });
 
   if (!notification) {
-    return res.status(404).json({ error: "Notification not found" });
+    return sendError(res, 404, "Notification not found");
   }
 
   if (notification.userId !== user.id) {
-    return res.status(403).json({
-      error: "You are not authorized to mark this notification as read",
-    });
+    return sendError(
+      res,
+      403,
+      "You are not authorized to mark this notification as read",
+    );
   }
 
   const updatedNotification = await prisma.notification.update({
@@ -46,7 +49,7 @@ router.post("/:id/read", auth, async (req, res) => {
     },
   });
 
-  res.json(updatedNotification);
+  sendData(res, 200, updatedNotification);
 });
 
 export default router;

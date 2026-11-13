@@ -3,6 +3,7 @@ import auth from "@middlewares/auth.ts";
 import type { User } from "@prisma";
 import { fetchGroup } from "../index.ts";
 import prisma from "@lib/prisma.ts";
+import { sendData } from "@lib/responses";
 
 const router = Router({ mergeParams: true });
 
@@ -13,6 +14,7 @@ router.get("/", auth, async (req, res) => {
     res,
   );
 
+  // fetchGroup already answered (404/403) when the group is missing or forbidden
   if (!group) return;
 
   const messages = await prisma.groupMessage.findMany({
@@ -24,7 +26,7 @@ router.get("/", auth, async (req, res) => {
     },
   });
 
-  res.json(messages);
+  sendData(res, 200, messages);
 });
 
 export default router;

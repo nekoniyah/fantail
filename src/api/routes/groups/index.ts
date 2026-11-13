@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "@middlewares/auth.ts";
 import prisma from "@lib/prisma.ts";
 import type { User } from "@prisma";
+import { sendError, sendData, sendMessage } from "@lib/responses";
 import type { Response } from "express-serve-static-core";
 
 const router = Router();
@@ -17,7 +18,7 @@ export async function fetchGroup(id: string, user: User, res: Response) {
   });
 
   if (!group) {
-    res.status(404).json({ message: "Group not found" });
+    sendError(res, 404, "Group not found");
     return;
   }
 
@@ -25,7 +26,7 @@ export async function fetchGroup(id: string, user: User, res: Response) {
     group.ownerId !== user.id ||
     !group.members.find((m) => m.id === user.id)
   ) {
-    res.status(403).json({ message: "You are not a member of this group" });
+    sendError(res, 403, "You are not a member of this group");
     return;
   }
 
@@ -41,7 +42,6 @@ router.get("/", auth, async (req, res) => {
       groups: {
         include: {
           members: { omit: { email: true, password: true } },
-          messages: true,
         },
       },
     },
@@ -51,18 +51,25 @@ router.get("/", auth, async (req, res) => {
     where: { ownerId: user.id },
     include: {
       members: { omit: { email: true, password: true } },
-      messages: true,
     },
   });
 
-  res.json(myGroups?.groups.concat(ownedGroups) ?? ownedGroups);
+  sendData(
+    res,
+    200,
+    myGroups?.groups.concat(ownedGroups) ?? ownedGroups,
+  );
 });
 
 router.get("/:id", auth, async (req, res) => {
   const id = req.params.id as string;
 
   const group = await fetchGroup(id, (req as any).user as User, res);
-  res.json(group);
+
+  // fetchGroup already answered (404/403) when the group is missing or forbidden
+  if (!group) return;
+
+  sendData(res, 200, group);
 });
 
 router.post("/", auth, async (req, res) => {
@@ -74,7 +81,7 @@ router.post("/", auth, async (req, res) => {
   });
 
   if (!userWithFriends)
-    return res.status(404).json({ message: "User not found" });
+    return sendError(res, 404, "User not found");
 
   const memberIds = req.body.members as string[];
 
@@ -82,7 +89,7 @@ router.post("/", auth, async (req, res) => {
     const friend = userWithFriends.friends.find(
       (friend) => friend.id === memberId,
     );
-    if (!friend) return res.status(404).json({ message: "Friend not found" });
+    if (!friend) return sendError(res, 404, "Friend not found");
   }
 
   await prisma.group.create({
@@ -94,7 +101,7 @@ router.post("/", auth, async (req, res) => {
     },
   });
 
-  res.status(200).json({ message: "Group created" });
+  sendMessage(res, 201, "Group created");
 });
 
 router.delete("/:id", auth, async (req, res) => {
@@ -106,12 +113,10 @@ router.delete("/:id", auth, async (req, res) => {
   });
 
   if (!isOwner)
-    return res
-      .status(403)
-      .json({ message: "You are not the owner of this group" });
+    return sendError(res, 403, "You are not the owner of this group");
 
   await prisma.group.delete({ where: { id } });
-  res.status(200).json({ message: "Group deleted" });
+  sendMessage(res, 200, "Group deleted");
 });
 
 export default router;
