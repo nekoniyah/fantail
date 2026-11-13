@@ -6,6 +6,7 @@
     Button,
     Card,
     EmptyState,
+    BackupExportPanel,
     Input,
     MediaLibraryPanel,
     Tabs,
@@ -27,6 +28,7 @@
     { id: "profile", label: "Profile" },
     { id: "emoji", label: "Emoji" },
     { id: "stickers", label: "Stickers" },
+    { id: "encryption", label: "Encryption" },
     { id: "ocs", label: "OCs" },
   ] as const;
 
@@ -35,7 +37,7 @@
   // Placeholders for tabs the backend doesn't support yet. Once a tab has real
   // data, replace its entry here with a dedicated panel in the markup.
   const comingSoon: Record<
-    Exclude<TabId, "profile" | "emoji" | "stickers">,
+    Exclude<TabId, "profile" | "emoji" | "stickers" | "encryption">,
     { icon: string; title: string; description: string }
   > = {
     ocs: {
@@ -230,6 +232,8 @@
             itemActionLabel="Use in a chat"
             itemActionIcon="💬"
           />
+        {:else if tab === "encryption"}
+          <BackupExportPanel />
         {:else}
           {@const info = comingSoon[tab]}
           <EmptyState

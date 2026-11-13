@@ -12,6 +12,11 @@
     lockIdentity,
     WrongPassphraseError,
   } from "#lib/crypto.ts";
+  import {
+    getBackupPayload,
+    copyText,
+    downloadBackup,
+  } from "#lib/backupExport.ts";
   import { Button, Input } from "#lib/components/index.ts";
 
   type Mode = "loading" | "unlock" | "setup" | "import";
@@ -22,6 +27,7 @@
   let backup = $state("");
   let error = $state<string>();
   let busy = $state(false);
+  let exportInfo = $state<string>();
 
 
   onMount(async () => {
@@ -29,12 +35,17 @@
 
     if (lsPassphrase && !get(identity)) {
       // Auto-unlock straight from localStorage: no gate UI, no waiting for
-      // form bind. Only touches the UI if it fails.
-      run(async () => {
+      // form bind. If it fails (no record for this account, wrong passphrase,
+      // account switch), fall through to the manual mode below instead of
+      // being stuck on "loading" forever — a failed unlock must not leave
+      // the user without a way to import or set up.
+      try {
         await unlockIdentity($user!.id, lsPassphrase);
         await finish(false);
-      });
-      return;
+        return;
+      } catch {
+        // fall through
+      }
     }
 
     passphrase.set(lsPassphrase ?? "");
@@ -108,6 +119,26 @@
     }
   }
 
+  // ── Export backup (from the unlock screen, where device migration matters) ──
+
+  async function exportBackup(copy: boolean) {
+    exportInfo = undefined;
+    try {
+      const payload = await getBackupPayload($user!.id);
+      if (copy) {
+        const ok = await copyText(payload.backup);
+        exportInfo = ok
+          ? "Backup copied — paste it into the import box on your other device."
+          : "Clipboard blocked; use Download instead.";
+      } else {
+        downloadBackup(payload.backup, $user!.username);
+        exportInfo = "Backup downloaded. Keep the file private.";
+      }
+    } catch {
+      exportInfo = "Could not read the identity on this device.";
+    }
+  }
+
   function submitSetup(event: SubmitEvent) {
     event.preventDefault();
     if ($passphrase.length < 8) {
@@ -174,6 +205,28 @@
     >
       Use a backup from another device instead
     </button>
+    <details class="rounded-box border-2 border-dashed border-neutral/40 bg-base-200 p-3">
+      <summary class="cursor-pointer select-none font-bold">
+        📦 Move to another device?
+      </summary>
+      <p class="mt-2 text-sm text-base-content/70">
+        Export this device's identity (still passphrase-encrypted) and import it
+        on the new device with the same passphrase.
+      </p>
+      <div class="mt-2 flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onclick={() => void exportBackup(false)}>
+          ⬇ Download backup
+        </Button>
+        <Button variant="outline" size="sm" onclick={() => void exportBackup(true)}>
+          ⧉ Copy to clipboard
+        </Button>
+      </div>
+      {#if exportInfo}
+        <p role="status" class="mt-2 text-sm font-bold text-success">
+          {exportInfo}
+        </p>
+      {/if}
+    </details>
   {:else if mode === "setup"}
     <p>
       Messages are encrypted on your device. Your passphrase never leaves it,

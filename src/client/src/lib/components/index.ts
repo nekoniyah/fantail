@@ -8,3 +8,4 @@ export { default as Tabs } from "./Tabs.svelte";
 export { default as EmptyState } from "./EmptyState.svelte";
 export { default as MediaLibraryPanel } from "./MediaLibraryPanel.svelte";
 export { default as EmojiStickerPicker } from "./EmojiStickerPicker.svelte";
+export { default as BackupExportPanel } from "./BackupExportPanel.svelte";

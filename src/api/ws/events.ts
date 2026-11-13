@@ -2,6 +2,7 @@ import FantailLogger from "@fantail/logger";
 import prisma from "@lib/prisma";
 import { Server } from "socket.io";
 import { listenWebsocketGroupEvents } from "./groups";
+import { listenVoiceCallEvents } from "./voice";
 
 export default function listenEvents(io: Server) {
   FantailLogger.info(`Started WebSocket Server.`);
@@ -26,5 +27,6 @@ export default function listenEvents(io: Server) {
     const user = session.user;
 
     await listenWebsocketGroupEvents(socket, user, io);
+    listenVoiceCallEvents(io, socket, user);
   });
 }

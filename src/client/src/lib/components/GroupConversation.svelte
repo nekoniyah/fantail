@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick, untrack, onDestroy } from "svelte";
   import { API_ROOT } from "#lib";
-  import { uploadEncryptedAttachment } from "#lib/api.ts";
+  import { uploadEncryptedAttachment, fetchUser } from "#lib/api.ts";
   import getSocket from "#lib/io.ts";
   import { identity, token, user } from "#lib/stores.ts";
   import {
@@ -23,6 +23,8 @@
   import ContextMenu from "./ContextMenu.svelte";
   import EmojiStickerPicker from "./EmojiStickerPicker.svelte";
   import E2eeGate from "./E2eeGate.svelte";
+  import GroupCall from "./GroupCall.svelte";
+  import { callState, hangUp, startCall } from "#lib/callService.ts";
   import type { MediaItem } from "#lib/types.ts";
 
   const { groupId }: { groupId: string } = $props();
@@ -44,7 +46,9 @@
 
   let keyStatus = $state<KeyStatus>("loading");
   let keyVersion = 0; // current version on the server (only used inside functions)
-  let group: any = null;
+  // $state so the identity-unlock retry effect below re-runs when the
+  // group:select ack lands (the two can complete in either order).
+  let group: any = $state(null);
 
   // ── Composer ──
   type PendingAttachment = {
@@ -174,6 +178,16 @@
       keyStatus = "error";
       return;
     }
+    if (!r.recipients.length) {
+      // No one (including me) has registered keys yet: a key wrapped for
+      // nobody would be unreadable and unshareable. Wait instead.
+      keyStatus = "waiting-owner";
+      return;
+    }
+    if (r.recipients.some((x) => !x.publicKey)) {
+      keyStatus = "error";
+      return;
+    }
     const { version, envelopes } = createGroupKeyVersion(
       groupId,
       r.keyVersion,
@@ -188,6 +202,15 @@
     const r = await ask<Recipients | null>("group:keys:recipients");
     if (!r) {
       keyStatus = "error";
+      return;
+    }
+
+    // Never publish a key wrapped for nobody: that bumps the version while
+    // making it permanently unreadable/unshareable (a bricked group). Wait
+    // until at least one member has registered keys; shareWithNewMembers and
+    // a later refresh handle late registrations afterwards.
+    if (!r.recipients.length) {
+      keyStatus = "waiting-owner";
       return;
     }
 
@@ -331,6 +354,14 @@
       if (!res || cancelled) return;
       group = res;
 
+      // The owner isn't among members; fetch their profile once so call
+      // tiles (and any other owner-name display) can resolve it.
+      if (res.ownerId && res.members) {
+        void fetchUser(res.ownerId).then((owner) => {
+          if (owner && !cancelled) group = { ...group, ownerProfile: owner };
+        });
+      }
+
       // Fetch history in parallel with the keys: the rows render as
       // "waiting for key" and redecryptMissing() fills them in when keys land.
       const rowsPromise = ask<GroupMessage[] | null>(
@@ -367,6 +398,16 @@
     }
   });
 
+  // The main effect runs before the E2EE gate finishes: envelopes fetched with
+  // the identity still locked all fail to unwrap and are then lost. Once BOTH
+  // an identity (unlock / setup / import) and a selected group exist, load the
+  // group's envelopes again from the server — keys cached, messages redecrypt.
+  // Tracks $identity and group ($state), so it re-runs whichever arrives last.
+  $effect(() => {
+    if (!$identity || !group) return;
+    void refreshKeys(false);
+  });
+
   // Keep the newest message in view, unless you've scrolled up to read history
   $effect(() => {
     messages.length;
@@ -395,7 +436,34 @@
     pickerOpen = false;
   }
 
-  // ── Emoji & sticker picker ──
+  // ─────────────── Voice call ───────────────
+
+  // Tiles must resolve the OWNER too: the roster contains owner+members, but
+  // group.members excludes the owner, so check both before falling back.
+  const callNameOf = (userId: string) => {
+    if (userId === $user?.id) return $user.displayName || $user.username;
+    const member = group?.members?.find((m: any) => m.id === userId);
+    if (member) return member.displayName || member.username;
+    const owner = group?.ownerProfile; // populated by fetchGroup below when present
+    if (owner && owner.id === userId) return owner.displayName || owner.username;
+    return "loading…"; // GroupCall fetches profiles it can't resolve
+  };
+  const callAvatarOf = (userId: string) => {
+    const member =
+      userId === $user?.id
+        ? $user
+        : group?.members?.find((m: any) => m.id === userId) ??
+          (group?.ownerProfile?.id === userId ? group.ownerProfile : undefined);
+    return member?.avatarUrl
+      ? `${API_ROOT}${member.avatarUrl}`
+      : "/default-avatar.png";
+  };
+  function toggleCall() {
+    if ($callState.active || $callState.connecting) void hangUp();
+    else void startCall(groupId);
+  }
+
+  // ─────────────── Emoji & sticker picker ───────────────
 
   function togglePicker() {
     pickerOpen = !pickerOpen;
@@ -838,6 +906,15 @@
           >
             +
           </Button>
+          <Button
+            variant={$callState.active ? "accent" : "outline"}
+            class="btn-circle"
+            aria-label={$callState.active ? "Leave voice call" : "Start voice call"}
+            aria-pressed={$callState.active}
+            onclick={toggleCall}
+          >
+            {$callState.active ? "📴" : "📞"}
+          </Button>
           <Input
             placeholder="Type your message..."
             aria-label="Message"
@@ -850,6 +927,9 @@
         </form>
       </div>
     </div>
+
+    <!-- Voice call (P2P via PeerJS) -->
+    <GroupCall {groupId} nameOf={callNameOf} avatarOf={callAvatarOf} />
   </div>
 {:else}
   <div class="fixed inset-x-0 top-30 bottom-0 flex items-center justify-center bg-base-200">

@@ -150,6 +150,7 @@ export async function listenWebsocketGroupEvents(
 
     if (groupId && groupId !== dbGroup.id) socket.leave(room(groupId));
     groupId = dbGroup.id;
+    socket.data.groupId = dbGroup.id;
     socket.join(room(groupId));
     cb(dbGroup);
   });
@@ -190,6 +191,11 @@ export async function listenWebsocketGroupEvents(
       if (!validEnvelopes(envelopes)) return cb(false);
 
       const required = new Set((await getRecipients(g)).map((r) => r.id));
+      // A key wrapped for nobody is unreadable forever: reject it instead of
+      // bumping the version and bricking the group. (Envelopes for members
+      // without registered keys are equally useless — getRecipients excludes
+      // them, so required.size === 0 means everyone lacks keys.)
+      if (required.size === 0 || envelopes.length === 0) return cb(false);
       if (
         envelopes.length !== required.size ||
         envelopes.some((e) => !required.has(e.userId))
