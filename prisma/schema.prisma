@@ -49,7 +49,7 @@ model User {
 
   friends         User[]           @relation("Friendship")
   friendOf        User[]           @relation("Friendship")
-  trustedSessions TrustedSession[]
+  connections     Connection[]
   sessions        Session[]
 
   publicKey        String? // base64 X25519 public key (nullable until each user has generated one)
@@ -161,15 +161,24 @@ model FriendInvitation {
   targetId String
 }
 
-model TrustedSession {
+// A pending ticket is what the user's client hands to a community server to
+// prove it is them; the ticket is deleted exactly when the server redeems it.
+// The auth server never hands out a bearer token for a community server: it
+// returns only public profile data, so the server can verify the user without
+// being able to connect on their behalf.
+model Connection {
   id String @id @default(cuid(2))
 
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
 
-  identity  String
+  serverAddress String // address of the community server this ticket is for
+  ticket        String @unique // one-time secret, held by the user's client only
+  expiresAt     DateTime
+
   createdAt DateTime @default(now())
-  used      Boolean  @default(false)
+
+  @@unique([userId, serverAddress])
 }
 
 model Session {

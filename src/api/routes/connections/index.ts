@@ -2,89 +2,88 @@ import { Router } from "express";
 import prisma from "@lib/prisma";
 import auth from "@middlewares/auth";
 import type { User } from "@prisma";
-
-import * as Iron from "iron-webcrypto";
-import { sendError, sendMessage } from "@lib/responses";
+import { z } from "zod";
+import token from "@lib/token";
+import { sendError, sendData } from "@lib/responses";
 
 const router = Router();
 
-// This route is used to establish a connection between the authentication server (Fantail server) and the target Fantail instance.
+// This route connects the authentication server (Fantail) to a Fantail
+// community server: the user proves they logged in here, and the community
+// server redeems that proof. The auth server never sends the user token and
+// never carries a connection secret: `verify` answers "is this user real"
+// and returns only public profile data, so the community server can verify
+// the user without being able to connect on their behalf.
 
-router.get("/", auth, async (req, res) => {});
+const TEN_MINUTES_MS = 10 * 60 * 1000;
 
+const addressSchema = z.object({
+  address: z.string().min(1).max(255),
+});
+
+// The (already authenticated) user mints a one-time ticket to hand to the
+// community server they want to connect to, proving they logged in here.
 router.post("/", auth, async (req, res) => {
   const user = (req as any).user as User;
 
-  const identity = await Iron.seal(
-    {
-      id: user.id,
-      username: user.username,
-      token: user.token,
-      password: user.password,
-    },
-    user.token,
-    Iron.defaults,
-  );
+  const { data, success, error } = await addressSchema.safeParseAsync(req.body);
+  if (!success) return sendError(res, 400, error.message);
 
-  await prisma.trustedSession.create({
-    data: {
-      user: { connect: { id: user.id } },
-      identity: identity,
+  // One row per (user, server) pair: minting again rotates the ticket,
+  // invalidating the previous one.
+  const connection = await prisma.connection.upsert({
+    where: {
+      userId_serverAddress: {
+        userId: user.id,
+        serverAddress: data.address,
+      },
+    },
+    create: {
+      userId: user.id,
+      serverAddress: data.address,
+      ticket: token(),
+      expiresAt: new Date(Date.now() + TEN_MINUTES_MS),
+    },
+    update: {
+      ticket: token(),
+      expiresAt: new Date(Date.now() + TEN_MINUTES_MS),
     },
   });
 
-  sendMessage(res, 201, "Trusted session created");
+  sendData(res, 201, {
+    ticket: connection.ticket,
+    expiresAt: connection.expiresAt,
+  });
 });
 
-/** For the Fantail instance,
- * this route is used to verify the integrity and the indentity of the user and connections between this server and the instance.
- */
-
+// The community server redeems the user's ticket exactly once: the row is
+// deleted, so the ticket can never be replayed. No token is sent back, the
+// identity and public profile are all the community server gets.
 router.post("/verify", async (req, res) => {
-  const identity = req.body.identity;
-  const userId = req.body.userId;
+  const { data, success, error } = await addressSchema
+    .extend({ ticket: z.string().min(1) })
+    .safeParseAsync(req.body);
+  if (!success) return sendError(res, 400, error.message);
 
-  if (!identity || !userId)
-    return sendError(res, 400, "Missing identity or userId");
+  const connection = await prisma.connection.findUnique({
+    where: { ticket: data.ticket },
+  });
+
+  if (!connection) return sendError(res, 404, "Invalid ticket");
+  if (connection.expiresAt < new Date())
+    return sendError(res, 410, "Ticket expired");
+  if (connection.serverAddress !== data.address)
+    return sendError(res, 403, "Ticket was minted for a different server");
 
   const account = await prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
+    where: { id: connection.userId },
+    omit: { password: true, email: true },
   });
+  if (!account) return sendError(res, 404, "Account not found");
 
-  if (!account)
-    return sendError(res, 404, "Account not found");
+  await prisma.connection.delete({ where: { id: connection.id } });
 
-  const sessions = await prisma.trustedSession.findMany({
-    where: {
-      userId: account.id,
-      identity: identity,
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (sessions.length === 0)
-    return sendError(res, 404, "No trusted sessions found for this identity");
-
-  const latestSession = sessions[0]!;
-
-  if (latestSession.used)
-    return sendError(res, 400, "This identity has already been used");
-
-  if (latestSession.identity !== identity)
-    return sendError(res, 400, "Invalid identity");
-
-  await prisma.trustedSession.update({
-    where: {
-      id: latestSession.id,
-    },
-    data: {
-      used: true,
-    },
-  });
-
-  sendMessage(res, 200, "Identity verified successfully");
+  sendData(res, 200, { user: account });
 });
 
 export default router;
